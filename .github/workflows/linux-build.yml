@@ -44,6 +44,11 @@ jobs:
           VERSION="${VERSION#v}"
           ./packaging/build_linux.sh
 
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq             libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3             libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0             libxcb-xkb1 libxcb-util1
+
       - name: Smoke test (start each app headless)
         run: |
           for key in trezor ledger bitbox; do
