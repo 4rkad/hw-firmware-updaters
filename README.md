@@ -233,6 +233,21 @@ Regenerate the README screenshots without hardware, using sample data:
 python docs/make_screenshots.py bitbox   # or trezor / ledger
 ```
 
+## Reproducible builds
+
+The Linux build is deterministic. `packaging/build_linux.sh` sets
+`PYTHONHASHSEED=0`, so a clean checkout of a tag produces byte-identical files
+given the same Python and dependency versions.
+
+Verified with `v0.1.0` (Trezor): the tag was built twice in place and once from a
+different directory; **487/487 files were identical** each time.
+
+The published `v0.1.0` artifacts were produced before this setting was added.
+Compared with a rebuild, every file is byte-identical except
+`_internal/base_library.zip`, which holds the same entries and module contents
+but in a different internal order. From the next release on, artifacts match a
+rebuild exactly.
+
 ## Layout
 
 ```

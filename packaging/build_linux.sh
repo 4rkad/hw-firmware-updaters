@@ -7,6 +7,9 @@
 #   PY_TREZOR=/path/to/python PY_LEDGER=... PY_BITBOX=... ./packaging/build_linux.sh
 set -euo pipefail
 
+# Byte-identical rebuilds: PyInstaller archive order depends on hash randomisation.
+export PYTHONHASHSEED=0
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION:-0.1.0}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
