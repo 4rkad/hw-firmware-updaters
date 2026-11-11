@@ -83,7 +83,8 @@ in any request this code makes.
 - Genuine check: online (vendor HSM) and offline.
 
 **BitBox**
-- Detects BitBox02 in normal or bootloader mode, edition and version.
+- Detects **BitBox02 and BitBox02 Nova**, in normal or bootloader mode, edition
+  (Multi / Bitcoin-only) and version.
 - Verifies asset SHA-256, edition magic and signature; follows intermediate
   firmware versions when required.
 - Device attestation on connect.
@@ -147,7 +148,9 @@ warranty; read `SECURITY.md` before using it with real funds.
 
 - Developed and tested on **Linux** only. Windows and macOS are not tested.
 - The BitBox flow was validated with a real BitBox02 Bitcoin-only (detection,
-  pairing, attestation, backup, rename, BIP85, wipe).
+  pairing, attestation, backup, rename, BIP85, wipe). BitBox02 Nova uses the
+  same flow with its own signed assets, selected automatically by model and
+  edition; it has not been hardware-tested here yet.
 - Trezor and Ledger are implemented against their official libraries and APIs.
   Not every model has been tested; when something fails, the log shows the
   step.
