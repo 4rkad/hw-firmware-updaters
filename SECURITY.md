@@ -1,28 +1,27 @@
-# Seguridad
+# Security
 
-## Riesgo del flasheo
+## Flashing risk
 
-Este software escribe firmware en dispositivos hardware. Una interrupción
-(cable, puerto, corte de luz, cierre forzado) puede inutilizar el dispositivo.
-Úsalo bajo tu responsabilidad y con el dispositivo conectado directamente.
+This software writes firmware to hardware devices. An interruption (cable,
+port, power loss, forced quit) can brick the device. Use it at your own risk and
+keep the device connected directly.
 
-## Verificaciones que hace la app
+## What the app verifies
 
-- SHA-256 del binario descargado frente al publicado por el fabricante.
-- Comprobación de firma/magic del firmware y de la edición del dispositivo.
-- Atestación de autenticidad del dispositivo cuando el fabricante la ofrece.
+- SHA-256 of the downloaded binary against the vendor's published value.
+- Firmware signature/magic and that it matches the device edition.
+- Device attestation when the vendor provides it.
 
-Si alguna comprobación falla, la app aborta y lo registra.
+If any check fails, the app aborts and records it in the log.
 
-## Datos
+## Data
 
-- No se envía telemetría ni información del dispositivo a terceros.
-- El emparejamiento con BitBox se guarda en `~/.cache` (claves locales).
-- Los registros se escriben en `~/.cache/<app>.log` y pueden contener el nombre
-  del dispositivo y códigos de emparejamiento: no los publiques.
+- No telemetry or device information is sent to third parties.
+- BitBox pairing keys are stored locally in `~/.cache`.
+- Logs are written to `~/.cache/<app>.log`. They can contain the device name and
+  pairing codes: do not publish them.
 
-## Reportar problemas
+## Reporting
 
-Abre un issue describiendo versión de la app, modelo y firmware del
-dispositivo, y los pasos para reproducirlo. No incluyas claves, seeds ni
-códigos de emparejamiento.
+Open an issue with the app version, device model and firmware, and the steps to
+reproduce. Do not include seeds, private keys or pairing codes.

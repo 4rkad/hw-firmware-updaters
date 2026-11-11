@@ -1,33 +1,31 @@
-# Dependencias de terceros
+# Third-party dependencies
 
-Este repositorio no incluye firmware, traducciones ni binarios de los
-fabricantes: se descargan en tiempo de ejecución desde sus repositorios
-oficiales y se verifican antes de instalarse.
+This repository does not bundle firmware, translations or vendor binaries: they
+are downloaded at runtime from official sources and verified before use.
 
-## Bibliotecas de Python
+## Python libraries
 
-| Paquete | Versión | Licencia | Uso |
+| Package | Version | License | Use |
 |---|---|---|---|
-| `trezor` | 0.20.2 | LGPL-3.0-only | Comunicación con Trezor |
-| `bitbox02` | 7.0.0 | Apache-2.0 | Comunicación con BitBox |
-| `hidapi` | 0.15.0 | BSD-3-Clause / GPL-3.0 | Transporte USB HID (Ledger) |
-| `websocket-client` | 1.9.2 | Apache-2.0 | API de Ledger |
-| `cryptography` | 50.0.2 | Apache-2.0 OR BSD-3-Clause | Criptografía (Ledger) |
-| `requests` | 2.34.2 | Apache-2.0 | Descargas y API de GitHub |
-| `PySide6` | 6.8.3 | LGPL-3.0-only / GPL-2.0 / GPL-3.0 | Interfaz gráfica |
+| `trezor` | 0.20.2 | LGPL-3.0-only | Trezor communication |
+| `bitbox02` | 7.0.0 | Apache-2.0 | BitBox communication |
+| `hidapi` | 0.15.0 | BSD-3-Clause / GPL-3.0 | USB HID transport (Ledger) |
+| `websocket-client` | 1.9.2 | Apache-2.0 | Ledger API |
+| `cryptography` | 50.0.2 | Apache-2.0 OR BSD-3-Clause | Cryptography (Ledger) |
+| `requests` | 2.34.2 | Apache-2.0 | Downloads and GitHub API |
+| `PySide6` | 6.8.3 | LGPL-3.0-only / GPL-2.0 / GPL-3.0 | GUI |
 
-Todas se instalan como dependencias externas mediante `requirements.txt`; no
-se modifican ni se incluyen sus fuentes en este repositorio.
+They are installed as external dependencies through `requirements.txt`; their
+sources are neither modified nor included here.
 
-## Fuente
+## Font
 
-| Recurso | Licencia | Nota |
+| Resource | License | Note |
 |---|---|---|
-| Inter (variable) | SIL Open Font License 1.1 | Ver `common/fonts/OFL.txt` |
+| Inter (variable) | SIL Open Font License 1.1 | See `common/fonts/OFL.txt` |
 
-## Marcas
+## Trademarks
 
-Trezor es una marca de SatoshiLabs s.r.o. Ledger es una marca de Ledger SAS.
-BitBox es una marca de Shift Crypto AG. Se mencionan únicamente para indicar
-compatibilidad. Este proyecto no está afiliado ni respaldado por ninguno de
-ellos.
+Trezor is a trademark of SatoshiLabs s.r.o. Ledger is a trademark of Ledger SAS.
+BitBox is a trademark of Shift Crypto AG. They are mentioned only to describe
+compatibility. This project is not affiliated with or endorsed by any of them.
