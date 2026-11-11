@@ -1,31 +1,42 @@
 # Contributing
 
-Small, focused changes are welcome.
+Focused changes are welcome.
 
-## Issues
+## Reporting issues
 
-Include the app (Trezor/Ledger/BitBox), version, device model and firmware, and
-the relevant log lines. **Never** include seeds, private keys, pairing codes,
-xpubs or addresses.
+Include the application (Trezor, Ledger, or BitBox), version, device model and
+firmware, and the relevant sanitized log lines. Never include seeds, private
+keys, pairing codes, xpubs, or addresses.
 
 ## Pull requests
 
-- One app or one concern per change; keep the three backends independent.
-- Run the checks before opening a PR:
+- Keep each change limited to one application or one concern.
+- Do not merge vendor-specific flashing logic; the three backends remain
+  independent.
+- Run the checks before opening a pull request:
+
   ```bash
   ruff check trezor ledger bitbox common docs/make_screenshots.py
   cd ledger && python -m pytest -q tests
   ```
-- Keep the UI text in Spanish and the documentation in English.
-- Do not add vendor logos or brand assets; icons must stay original.
-- Do not commit firmware binaries, logs, `.venv` or `build/`.
+
+- User interface text is Spanish; documentation is English.
+- Do not add vendor logos or brand assets. Icons must remain original.
+- Do not commit firmware binaries, logs, virtual environments, or build output.
 
 ## Commit messages
 
-Describe what changes, not "update": `trezor: show backup state`,
-`bitbox: fix pairing dialog`, `docs: verify release signatures`.
+Describe the change precisely:
+
+```
+trezor: show backup state after verification
+bitbox: fix pairing dialog lifetime
+docs: correct release verification steps
+```
+
+Avoid generic messages such as `update` or `fixes`.
 
 ## Signing
 
-Tags are signed with the key in `docs/KEY.asc`.
-Contributors do not need to sign their commits.
+Release tags are signed with the key published in `docs/KEY.asc`. Contributors
+do not need to sign commits.

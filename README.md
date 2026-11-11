@@ -1,185 +1,230 @@
-# Firmware updater for Trezor, Ledger and BitBox
+# Firmware Updater for Trezor, Ledger and BitBox
 
-> Independent, **unofficial** project. Not affiliated with, sponsored or
-> endorsed by SatoshiLabs/Trezor, Ledger SAS or Shift Crypto AG. Names are used
-> only to describe compatibility; they are trademarks of their owners.
+[![Linux builds](https://github.com/4rkad/hw-firmware-updaters/actions/workflows/linux-build.yml/badge.svg)](https://github.com/4rkad/hw-firmware-updaters/actions/workflows/linux-build.yml)
+[![Latest release](https://img.shields.io/github/v/release/4rkad/hw-firmware-updaters)](https://github.com/4rkad/hw-firmware-updaters/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Three native desktop apps that do one job: update a hardware wallet's firmware
-over USB without installing the vendor's full suite.
+Independent, unofficial desktop applications for updating hardware wallet
+firmware over USB, without installing the vendor's full wallet suite.
+
+> Not affiliated with, sponsored by, or endorsed by SatoshiLabs s.r.o.,
+> Ledger SAS, or Shift Crypto AG. Product names are used only to describe
+> compatibility and remain the property of their respective owners.
+
+## Overview
+
+Three native Linux applications, one per vendor:
+
+| Application | Firmware | Device management |
+|---|---|---|
+| Trezor | Universal and Bitcoin-only editions | PIN, passphrase, wallet setup, backup, recovery, language |
+| Ledger | Firmware, apps and language packs | App catalog, export, genuine check |
+| BitBox | BitBox02 and BitBox02 Nova, both editions | Passphrase, microSD backup, wallet setup, BIP85, rename, reset |
+
+Each application performs one task: identify the device, download the official
+firmware, verify it, and write it. No account, wallet, portfolio, or telemetry.
 
 | Trezor | Ledger | BitBox |
 |---|---|---|
 | ![](docs/screenshots/trezor.png) | ![](docs/screenshots/ledger.png) | ![](docs/screenshots/bitbox.png) |
 
-*Screenshots with a device connected; Trezor and Ledger use sample data to show
-the full interface.*
+*Screenshots with a device connected. Trezor and Ledger use representative
+data to show the full interface.*
 
-## Why this exists
+## Motivation
 
-Hardware wallet firmware is a signed binary of a few megabytes. Installing it
-officially means going through the vendor's desktop app, which does much more
-than that:
+Vendor firmware is a signed binary of a few megabytes. The official update
+path, however, is a complete wallet application:
 
 - **Trezor Suite** is an Electron wallet with accounts, portfolio and usage
-  analytics (opt-out available, but on by default). Firmware updates live
-  inside that app, not as a standalone tool.
-- **Ledger Live** is closed-source and the only official path for firmware,
-  apps and language packs. It adds an account layer, usage analytics and a
-  packaging story that does not always fit Linux (AppImage, udev rules, its own
-  updater).
-- **BitBoxApp** is open source, but still a complete wallet app you install and
-  keep updated just to flash a device.
+  analytics (opt-out available). Firmware updates are part of that application.
+- **Ledger Live** is closed-source and the only official channel for firmware,
+  apps and language packs. It includes an account layer, usage analytics, and a
+  packaging model that does not always integrate well with Linux.
+- **BitBoxApp** is open source, but still a full wallet application that must be
+  installed and maintained in order to flash a device.
 
-Updating firmware does not require a wallet, an account, a portfolio or usage
-metrics. It requires talking to the device, downloading the official binary and
-checking that it is what it claims to be.
+Firmware updates do not require wallet functionality. They require a reliable
+USB connection, the official firmware, and verification before installation.
 
-So: one small window per vendor, no account, no wallet, no telemetry, showing
-what it verifies while it does it.
+## Privacy
 
-## Privacy: what you gain
+Vendor suites are wallets. Rendering balances and history requires account
+descriptors (xpubs or addresses) and queries to blockchain backends; depending
+on configuration, they also collect usage analytics. Opening such an
+application solely to update firmware unnecessarily exposes that surface.
 
-The official suites are wallets. To render balances and history they need your
-account descriptors (xpubs/addresses) and query blockchain backends with them;
-depending on settings they also collect usage analytics. If you only open them
-to update firmware, you are exposing a wallet surface you do not need for that
-task.
+These applications do not process wallet data:
 
-These apps never handle wallet data:
+- No accounts, portfolios, or telemetry.
+- No xpub, address, balance, or transaction history is read from the device or
+  requested from any service.
+- Device calls are limited to system and firmware information, settings, and —
+  only on explicit user action — seed display or backup.
+- Logs are written locally to `~/.cache/<app>.log` and never uploaded. BitBox
+  pairing keys are stored in the same directory.
+- Ledger offline mode bypasses the vendor's genuine-check service; the online
+  check is optional.
 
-- **No accounts, no portfolio, no telemetry.** Nothing is sent anywhere except
-  the requests needed to fetch and verify firmware.
-- **No xpub, addresses, balances or history are ever read** from the device or
-  requested from a network service. The device calls are system/firmware info,
-  settings, and — only when you explicitly ask — seed display or backup.
-- **Local logs only**, written to `~/.cache/<app>.log`; they are never uploaded.
-  The BitBox pairing keys stay in the same local cache.
-- **Ledger offline mode** avoids the vendor's genuine-check service entirely;
-  the online check is optional and clearly labelled.
+Network requests are limited to firmware sources:
 
-What still leaks, honestly: the firmware hosts see your IP and which
-model/version you request (`data.trezor.io`, GitHub for BitBox, Ledger's manager
-API). That is metadata, not wallet data, and it can be reduced with a VPN or
-proxy. There is no analytics endpoint, no account ID and no wallet fingerprint
-in any request this code makes.
+| Endpoint | Purpose |
+|---|---|
+| `data.trezor.io` | Trezor firmware metadata and binaries |
+| `api.github.com`, GitHub releases | BitBox firmware metadata and binaries |
+| `manager.api.live.ledger.com` | Ledger firmware, apps and language packs |
+| `download.languages.ledger.com` | Ledger language data |
 
-## What it does
+Those hosts see the client IP and the requested model or version. This is
+metadata, not wallet data, and can be reduced with a VPN or proxy. No analytics
+endpoint, account identifier, or wallet fingerprint is contacted.
 
-**Trezor**
-- Detects model, firmware, edition (Universal / Bitcoin-only), PIN, passphrase,
-  language and backup state.
-- Downloads official firmware, verifies model and fingerprint, and shows the
-  upgrade path including the minimum jump the device supports.
-- Switches edition both ways, warning that it wipes the wallet.
-- Management: PIN, passphrase, create/wipe wallet, backup/verify, recover and
-  language.
+## Verification
 
-**Ledger**
-- Detects model, firmware, MCU, PIN state and whether the manager is allowed.
-- Queries the published firmware for the device target, downloads it, shows the
-  changelog and updates, optionally reinstalling apps.
-- Lists installed and updatable apps, exports them to JSON.
-- Installs language packs.
-- Genuine check: online (vendor HSM) and offline.
+Each application verifies as much as the vendor allows before writing:
 
-**BitBox**
-- Detects **BitBox02 and BitBox02 Nova**, in normal or bootloader mode, edition
-  (Multi / Bitcoin-only) and version.
-- Verifies the asset SHA-256 and edition magic; the bootloader verifies the
-  firmware signature. Follows intermediate firmware versions when required.
-- Device attestation on connect.
-- Pairing code shown in a dialog, not buried in the log.
-- Management: passphrase, microSD backup, show seed, create/restore wallet,
-  rename, BIP85, change password and factory reset.
+| Vendor | Host-side checks | Device-side checks |
+|---|---|---|
+| Trezor | Model, published fingerprint, firmware signature (`trezorlib`) | Bootloader verifies the firmware |
+| BitBox | SHA-256 against the published digest, edition magic | Bootloader verifies the signature; attestation on connect |
+| Ledger | Firmware parameters and HTTPS transport | Device verifies the firmware before applying it; HSM genuine check |
 
-All three keep a local log of what happened and never phone home.
+A failed check aborts the operation before the device is modified. The Ledger
+backend audit is documented in `docs/AUDIT-ledger.md` (Spanish).
 
-## How it works
+### Release verification
 
-The structure is deliberately simple:
-
-- **One app per vendor**, each with its own backend. There is no shared
-  flashing layer: every device has different commands, checks and states.
-  Merging them would have been more fragile, not cleaner.
-- **PySide6/Qt** for the UI. Theme, dialogs and components (cards, chips, log)
-  are shared between Trezor and BitBox; Ledger uses the same palette and visual
-  language. A legacy Tkinter mode is kept behind `--tk` for comparison and
-  debugging.
-- **Worker threads**: the window never blocks while downloading or writing
-  firmware. Every operation has a timeout and leaves the UI in a consistent
-  state on failure.
-- **Direct USB HID transport**, no Bridge and no daemon.
-- **Download and verify on the client**: SHA-256, magic, model and edition,
-  plus signatures where the host can check them. If anything does not match,
-  it aborts before touching the device.
-- **Logs in `~/.cache/<app>.log`**, local only.
-
-## Where everything comes from
-
-- The code in this repository was written for this project. No UI, icons or
-  assets were copied from the official suites.
-- Trezor communication uses `trezorlib` (LGPL-3.0) and its official messages;
-  BitBox uses the `bitbox02` library (Apache-2.0).
-- Ledger has no equivalent update library: the backend speaks HID directly and
-  queries the vendor's manager API and HSM, with `cryptography` for the checks.
-- Firmware, translations and catalogs are **not redistributed here**: they are
-  downloaded at runtime from official sources (BitBox's GitHub, Trezor's data
-  hosts, Ledger's manager API) and verified before installation.
-- Icons are original (an update arrow over a device). The typeface is Inter,
-  under SIL OFL 1.1 (`common/fonts/OFL.txt`).
-- Dependencies and their licenses are listed in `THIRD_PARTY.md`.
-
-## Verification and security
-
-Each app checks what it can before writing:
-
-- **Trezor**: firmware is parsed with `trezorlib`, and the model and published
-  fingerprint for that edition are checked.
-- **BitBox**: asset SHA-256 against the published value and edition magic;
-  the bootloader verifies the signature. Device attestation on connect.
-- **Ledger**: firmware checks and the HSM response for genuineness; details in
-  `docs/AUDIT-ledger.md` (Spanish).
-
-What it **cannot** do: verify firmware on its own if the vendor publishes no
-hash or verifiable signature, or replace an audit of the device code. And like
-any flashing tool, an interruption can brick the device. Provided without
-warranty; read `SECURITY.md` before using it with real funds.
-
-## Status and limitations
-
-- Developed and tested on **Linux** only. Windows and macOS are not tested.
-- The BitBox flow was validated with a real BitBox02 Bitcoin-only (detection,
-  pairing, attestation, backup, rename, BIP85, wipe). BitBox02 Nova uses the
-  same flow with its own signed assets, selected automatically by model and
-  edition; it has not been hardware-tested here yet.
-- Trezor and Ledger are implemented against their official libraries and APIs.
-  Not every model has been tested; when something fails, the log shows the
-  step.
-- This is not a wallet manager: it does not store seeds, sign transactions or
-  know your xpubs.
-
-## Verifying a release
-
-Each release publishes a single `SHA256SUMS` file covering every AppImage and
-`.deb`, signed with GPG. The primary key stays offline and the signing subkey
-lives on a hardware token:
+Releases publish a single `SHA256SUMS` file covering every artifact, signed
+with GPG:
 
 ```
 B6DD B2AF 5466 FCBC 26C9  A48E 08D4 B2CC 5280 22BB
 ```
 
-Signatures are made by a hardware-backed signing subkey; `gpg --verify` prints
-its own fingerprint when it checks a release.
+Signatures are produced by a hardware-backed signing subkey; `gpg --verify`
+prints its fingerprint when checking a release.
 
 ```bash
-gpg --import docs/KEY.asc          # or fetch the key from a keyserver
+gpg --import docs/KEY.asc
 gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c SHA256SUMS
 ```
 
-A good signature proves the checksums were signed by that key, and the
-checksums prove the files were not modified. Signing does not prove how a
-binary was built, only who signed the result.
+A valid signature proves the checksums were signed by the key; the checksums
+prove the artifacts were not modified. Signing does not prove how a binary was
+built.
+
+Build provenance is available for CI artifacts:
+
+```bash
+gh attestation verify hwfw-trezor-X.Y.Z-x86_64.AppImage \
+  --repo 4rkad/hw-firmware-updaters
+```
+
+## Architecture
+
+- **One application per vendor**, each with an independent backend. Device
+  commands, states and verification rules differ enough that a shared flashing
+  layer would add fragility rather than reduce duplication.
+- **PySide6/Qt** user interface. Trezor and BitBox share theme, dialogs and
+  components; Ledger uses the same visual language. A legacy Tkinter mode is
+  available with `--tk`.
+- **Worker threads** for downloads and device I/O. The interface remains
+  responsive, operations have timeouts, and failures leave the UI in a
+  consistent state.
+- **Direct USB HID transport**, without Bridge or background daemons.
+- **Client-side verification** of hashes, magic, model, edition, and signatures
+  where the host can validate them.
+- **Local logs** in `~/.cache/<app>.log`.
+
+## Provenance
+
+- Application code was written for this project. No UI, icons, or assets were
+  taken from the vendor suites.
+- Trezor communication uses `trezorlib` (LGPL-3.0); BitBox uses the `bitbox02`
+  library (Apache-2.0).
+- Ledger provides no equivalent update library. The backend implements HID
+  transport and queries the vendor manager API and HSM directly.
+- Firmware, translations and catalogs are not redistributed. They are
+  downloaded at runtime from official sources and verified before installation.
+- Icons are original. The typeface is Inter, licensed under SIL OFL 1.1
+  (`common/fonts/OFL.txt`).
+- Dependency licenses are documented in `THIRD_PARTY.md`, `NOTICE` and
+  `licenses/`.
+
+## Limitations
+
+- Linux only. Windows and macOS are not supported or tested.
+- BitBox flows were validated with a physical BitBox02 Bitcoin-only: detection,
+  pairing, attestation, backup, rename, BIP85 and reset. BitBox02 Nova uses the
+  same flow with model-specific signed assets and has not been hardware-tested.
+- Trezor and Ledger are implemented against their official libraries and APIs.
+  Not every model has been tested.
+- This is not a wallet manager: it does not store seeds, sign transactions, or
+  read xpubs.
+- Flashing firmware carries risk. An interrupted operation can render the
+  device unusable. The software is provided without warranty; see `SECURITY.md`.
+
+## Requirements
+
+- Linux (x86_64).
+- Python 3.11 or newer and `venv` when running from source.
+- USB access to the device; the `.deb` packages install the required udev
+  rules.
+
+## Installation
+
+### Prebuilt packages
+
+The [releases page](https://github.com/4rkad/hw-firmware-updaters/releases)
+provides, for each application:
+
+- **AppImage** (x86_64): portable, no installation. udev rules are required for
+  the vendor's USB IDs; the `.deb` installs them.
+- **`.deb`** (amd64): installs to `/opt/hwfw`, adds the menu entry and the
+  vendor udev rules.
+
+Verify the signed `SHA256SUMS` before running any artifact.
+
+### From source
+
+```bash
+cd trezor && ./run.sh
+cd ledger && ./run.sh
+cd bitbox && ./run.sh
+```
+
+Each script creates its virtual environment on first run.
+
+Desktop integration:
+
+```bash
+./packaging/install.sh
+./packaging/install.sh --uninstall
+```
+
+### Building packages
+
+```bash
+VERSION=0.1.2 ./packaging/build_linux.sh
+```
+
+The script runs PyInstaller for each application and produces
+`build/appimage/`, `build/deb/` and `build/release/SHA256SUMS`. Python
+interpreters can be overridden with `PY_TREZOR`, `PY_LEDGER` and `PY_BITBOX`.
+CI does not hold the signing key; artifacts are signed by the maintainer after
+download.
+
+## Reproducible builds
+
+`packaging/build_linux.sh` sets `PYTHONHASHSEED=0` and pins PyInstaller. With
+identical Python and dependency versions, rebuilding a tag produces
+byte-identical files.
+
+Verified on the `v0.1.0` tag: two builds in place and one from a different
+directory produced 487/487 identical files. `v0.1.2` uses the same settings and
+is built from the tag in CI. Dependencies are pinned in `requirements.txt` and
+`packaging/build_linux.sh`.
 
 ## Development
 
@@ -187,91 +232,36 @@ binary was built, only who signed the result.
 make lint          # ruff
 make test          # backend tests
 make screenshots   # regenerate docs/screenshots
-make build         # AppImage + .deb
+make build         # AppImage and .deb
 ```
 
-Release process: `docs/RELEASE.md`. Contribution rules: `CONTRIBUTING.md`.
+Release procedure: `docs/RELEASE.md`. Contribution guidelines:
+`CONTRIBUTING.md`.
 
-## Usage
-
-### Prebuilt Linux binaries
-
-The [releases page](https://github.com/4rkad/hw-firmware-updaters/releases) ships, for each app:
-
-- **AppImage** (x86_64): portable, no installation. Make it executable and run
-  it. It needs udev rules for the vendor's USB IDs; the `.deb` installs them,
-  or use the ones your distro already provides for the vendor's suite.
-- **`.deb`** (amd64): installs to `/opt/hwfw`, adds the menu entry and the udev
-  rules for that vendor.
-
-Verify the SHA-256 checksums published with each release before running
-anything.
-
-### From source
-
-Requirements: Linux, Python 3.11+ and `venv`.
-
-```bash
-cd trezor && ./run.sh      # creates the venv on first run
-cd ledger && ./run.sh
-cd bitbox && ./run.sh
-```
-
-Install the application-menu entries:
-
-```bash
-./packaging/install.sh
-./packaging/install.sh --uninstall
-```
-
-### Build AppImage and .deb
-
-```bash
-VERSION=0.1.2 ./packaging/build_linux.sh
-```
-
-The script runs PyInstaller for each app and produces `build/appimage/`,
-`build/deb/` and `build/release/SHA256SUMS`. Python interpreters can be
-overridden with `PY_TREZOR`, `PY_LEDGER` and `PY_BITBOX`. PyInstaller is pinned;
-CI does not hold the signing key, so artifacts are signed by the maintainer
-after download.
-
-Regenerate the README screenshots without hardware, using sample data:
-
-```bash
-python docs/make_screenshots.py bitbox   # or trezor / ledger
-```
-
-## Reproducible builds
-
-The Linux build is deterministic. `packaging/build_linux.sh` sets
-`PYTHONHASHSEED=0`, so a clean checkout of a tag produces byte-identical files
-given the same Python and dependency versions.
-
-Verified on the `v0.1.0` tag (Trezor): built twice in place and once from a
-different directory, **487/487 files identical**. `v0.1.2` uses the same
-settings and is built from the tag in CI. Reproducing it requires the same
-Python and dependency versions; they are pinned in `requirements.txt` and
-`packaging/build_linux.sh`.
-
-## Layout
+## Project structure
 
 ```
 .github/       CI: build, tests, smoke test, provenance attestation
 common/        shared UI (theme, dialogs, jobs) and Inter font
-trezor/        Qt app, backend and Tkinter mode
-ledger/        Qt app, backend and tests
-bitbox/        Qt app and backend
+trezor/        Qt application, backend and Tkinter mode
+ledger/        Qt application, backend and tests
+bitbox/        Qt application and backend
 icons/         original icons
 licenses/      third-party license texts
 packaging/     release build and desktop installer
 docs/          screenshots, release process and audit
 ```
 
+## Security
+
+Report vulnerabilities as described in `SECURITY.md`. Do not include seeds,
+private keys, pairing codes, xpubs, or addresses in reports or logs.
+
 ## License and trademarks
 
-Code under MIT (`LICENSE`). Dependencies and font in `THIRD_PARTY.md`.
+Source code is licensed under MIT (`LICENSE`). Third-party notices are in
+`THIRD_PARTY.md`, `NOTICE` and `licenses/`.
 
 Trezor®, Ledger® and BitBox® are trademarks of their respective owners. This
 project does not use their logos and implies no affiliation or endorsement. See
-`TRADEMARKS.md` and `NOTICE`.
+`TRADEMARKS.md`.

@@ -1,23 +1,22 @@
-# Trademarks and affiliation
+# Trademark Policy
 
-This is an independent, unofficial project. It is **not affiliated with,
-sponsored by, or endorsed by** SatoshiLabs s.r.o. (Trezor), Ledger SAS, or
-Shift Crypto AG (BitBox).
+This is an independent, unofficial project. It is not affiliated with,
+sponsored by, or endorsed by SatoshiLabs s.r.o. (Trezor), Ledger SAS, or Shift
+Crypto AG (BitBox).
 
 Trezor®, Ledger®, and BitBox® are trademarks of their respective owners. They
-are used here only to describe compatibility with those devices, in a
-nominative sense: to identify the hardware the software works with.
+are used only to identify the hardware supported by this software, in a
+nominative sense.
 
-What this project does:
+The project:
 
-- Does not use the vendors' logos, icons, or brand assets. The application
-  icons are original.
-- Does not claim to be official software or to be endorsed by any vendor.
-- Does not modify or redistribute vendor firmware: firmware is downloaded at
+- does not use vendor logos, icons, or brand assets; application icons are
+  original;
+- does not claim official status or vendor endorsement;
+- does not redistribute or modify vendor firmware; firmware is downloaded at
   runtime from official sources and verified before installation.
 
-If a trademark owner considers any use here inappropriate, open an issue or
-contact the maintainer; names and references will be adjusted promptly.
+Trademark owners who consider a use inappropriate may contact the maintainer
+through a GitHub issue. Names and references will be adjusted promptly.
 
-Third-party licenses and notices are in `THIRD_PARTY.md`, `NOTICE`, and
-`licenses/`.
+Related documents: `NOTICE`, `THIRD_PARTY.md`, and `licenses/`.

@@ -1,27 +1,42 @@
-# Security
+# Security Policy
+
+## Supported versions
+
+Security fixes are applied to the latest release only.
+
+## Reporting a vulnerability
+
+Use GitHub's private vulnerability reporting: **Security → Advisories → Report a
+vulnerability** in this repository. Do not open a public issue for an
+unpatched vulnerability.
+
+Include the affected application and version, device model and firmware, the
+steps to reproduce, and any relevant sanitized log lines. Never include seeds,
+private keys, pairing codes, xpubs, or addresses.
+
+## Scope
+
+In scope:
+
+- Application code and backends in this repository.
+- Packaging, build scripts, and release workflow.
+- Signature and checksum verification logic.
+
+Out of scope:
+
+- Vendor firmware and vendor libraries.
+- Vulnerabilities in the devices themselves.
+- Physical attacks against the hardware wallet.
 
 ## Flashing risk
 
 This software writes firmware to hardware devices. An interruption (cable,
-port, power loss, forced quit) can brick the device. Use it at your own risk and
-keep the device connected directly.
+port, power loss, forced termination) can render a device unusable. Keep the
+device connected directly and do not interrupt an operation.
 
-## What the app verifies
-
-- SHA-256 of the downloaded binary against the vendor's published value.
-- Firmware signature/magic and that it matches the device edition.
-- Device attestation when the vendor provides it.
-
-If any check fails, the app aborts and records it in the log.
-
-## Data
+## Data handling
 
 - No telemetry or device information is sent to third parties.
-- BitBox pairing keys are stored locally in `~/.cache`.
-- Logs are written to `~/.cache/<app>.log`. They can contain the device name and
-  pairing codes: do not publish them.
-
-## Reporting
-
-Open an issue with the app version, device model and firmware, and the steps to
-reproduce. Do not include seeds, private keys or pairing codes.
+- Logs are written to `~/.cache/<app>.log` and may contain the device name and
+  pairing codes. Do not publish them.
+- BitBox pairing keys are stored locally in the same cache directory.
