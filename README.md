@@ -168,8 +168,10 @@ gh attestation verify hwfw-trezor-X.Y.Z-x86_64.AppImage \
   read xpubs.
 - Ledger integration pins `livecommonversion` (overridable with the
   `LIVE_COMMON_VERSION` environment variable) and may break if the vendor
-  changes its API. Offline genuine checks use the issuer keys known to this
-  project; an unrecognized model is reported as unverified, not as counterfeit.
+  changes its API. A weekly CI job runs `--selftest`; see `docs/LEDGER-API.md`
+  for detection and update steps. Offline genuine checks use the issuer keys
+  known to this project; an unrecognized model is reported as unverified, not
+  as counterfeit.
 - The legacy Tk interface (`--tk`) exposes an optional BIP85 Lightning seed
   export to the host. The Qt interface only displays the BIP39 mnemonic on the
   device.
@@ -263,7 +265,7 @@ bitbox/        Qt application and backend
 icons/         original icons
 licenses/      third-party license texts
 packaging/     release build and desktop installer
-docs/          screenshots, release process and audit
+docs/          screenshots, release process, Ledger API notes and review
 ```
 
 ## Security

@@ -172,7 +172,18 @@ def http_post_json(url: str, payload, timeout: float = 30.0):
 
 def api_get(path: str, **params):
     params.setdefault("livecommonversion", LIVE_COMMON_VERSION)
-    return http_json(MANAGER_API + path + "?" + urllib.parse.urlencode(params))
+    url = MANAGER_API + path + "?" + urllib.parse.urlencode(params)
+    try:
+        return http_json(url)
+    except Exception as exc:
+        code = getattr(exc, "code", None)
+        if code in (400, 404, 410, 422):
+            raise RuntimeError(
+                f"La API de Ledger rechazó {path} (HTTP {code}). "
+                "Puede haber cambiado; prueba LIVE_COMMON_VERSION=<versión> "
+                "o usa Ledger Live temporalmente (ver docs/LEDGER-API.md)."
+            ) from exc
+        raise
 
 
 def norm_version(value: str) -> tuple[int, ...] | None:
@@ -1408,8 +1419,14 @@ def selftest() -> int:
         except Exception as exc:
             ok = False
             print(f"  {name:18} ERROR: {exc}")
-    print("SELFTEST OK" if ok else "SELFTEST CON ERRORES")
-    return 0 if ok else 1
+    if not ok:
+        print(
+            "SELFTEST CON ERRORES: la API de Ledger puede haber cambiado. "
+            "Revisa docs/LEDGER-API.md."
+        )
+        return 1
+    print("SELFTEST OK")
+    return 0
 
 
 # --------------------------------------------------------------------------- GUI
