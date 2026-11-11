@@ -60,7 +60,8 @@ git tag -v vX.Y.Z
 
 ## Reproducibility
 
-`packaging/build_linux.sh` sets `PYTHONHASHSEED=0` and pins PyInstaller. With
+`packaging/build_linux.sh` sets `PYTHONHASHSEED=0`, pins PyInstaller, and pins
+the AppImage runtime by SHA-256. It requires `squashfs-tools`. With
 identical Python and dependency versions, rebuilding a tag produces
 byte-identical files. This was verified on `v0.1.0`: 487/487 files matched,
 including a build from a different directory.

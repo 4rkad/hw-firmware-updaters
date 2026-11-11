@@ -13,6 +13,9 @@ export PYTHONHASHSEED=0
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --always 2>/dev/null | sed 's/^v//' || echo 0.0.0)}"
 PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
+# Pinned AppImage runtime. Update the digest when bumping this URL.
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64"
+APPIMAGE_RUNTIME_SHA256="66f5b22f035022b8bdebb54c066aa6edc7b5db282fe6cdb372e7965f80772557"
 ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
 BUILD="$ROOT/build"
 DIST="$BUILD/dist"
@@ -38,17 +41,25 @@ declare -A SUMMARY=(
     [bitbox]="Updates BitBox02/Nova firmware over USB without BitBoxApp"
 )
 
+command -v mksquashfs >/dev/null 2>&1 || {
+    echo "ERROR: falta mksquashfs (squashfs-tools)" >&2
+    exit 1
+}
 mkdir -p "$DIST" "$APPIMAGE_DIST" "$DEB_DIST" "$TOOLS"
 
-appimagetool() {
-    local tool="$TOOLS/appimagetool"
-    if [ ! -x "$tool" ]; then
-        echo "· Descargando appimagetool"
-        curl -fsSL -o "$tool" \
-            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-        chmod +x "$tool"
+appimage_runtime() {
+    local rt="$TOOLS/runtime-x86_64"
+    if [ ! -x "$rt" ]; then
+        echo "· Descargando runtime de AppImage" >&2
+        curl -fsSL -o "$rt" "$APPIMAGE_RUNTIME_URL"
+        chmod +x "$rt"
     fi
-    APPIMAGE_EXTRACT_AND_RUN=1 "$tool" "$@"
+    if ! printf '%s  %s\n' "$APPIMAGE_RUNTIME_SHA256" "$rt" | sha256sum -c --status; then
+        rm -f "$rt"
+        echo "ERROR: checksum inesperado del runtime de AppImage" >&2
+        exit 1
+    fi
+    printf '%s\n' "$rt"
 }
 
 udev_rule() {
@@ -58,8 +69,9 @@ udev_rule() {
             cat <<'EOF'
 ACTION!="add|change", GOTO="hwfw_end"
 KERNEL!="hidraw*", GOTO="hwfw_end"
-ATTRS{idVendor}=="1209", TAG+="uaccess"
-ATTRS{idVendor}=="534c", TAG+="uaccess"
+ATTRS{idVendor}=="1209", ATTRS{idProduct}=="53c0", TAG+="uaccess"
+ATTRS{idVendor}=="1209", ATTRS{idProduct}=="53c1", TAG+="uaccess"
+ATTRS{idVendor}=="534c", ATTRS{idProduct}=="0001", TAG+="uaccess"
 LABEL="hwfw_end"
 EOF
             ;;
@@ -153,9 +165,15 @@ HERE="\$(dirname "\$(readlink -f "\$0")")"
 exec "\$HERE/hwfw-$key" "\$@"
 EOF
     chmod +x "$appdir/AppRun"
-    rm -f "$out"
+    local runtime squash
+    runtime="$(appimage_runtime)"
+    squash="$BUILD/hwfw-$key.squashfs"
+    rm -f "$out" "$squash"
     echo "· $key: AppImage"
-    appimagetool "$appdir" "$out" >/dev/null
+    mksquashfs "$appdir" "$squash" -root-owned -noappend -comp xz -b 1M >/dev/null
+    cat "$runtime" "$squash" > "$out"
+    chmod +x "$out"
+    rm -f "$squash"
 }
 
 build_deb() {

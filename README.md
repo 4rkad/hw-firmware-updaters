@@ -89,8 +89,12 @@ Each application verifies as much as the vendor allows before writing:
 | BitBox | SHA-256 against the published digest, edition magic | Bootloader verifies the signature; attestation on connect |
 | Ledger | Firmware parameters and HTTPS transport | Device verifies the firmware before applying it; HSM genuine check |
 
-A failed check aborts the operation before the device is modified. The Ledger
-backend audit is documented in `docs/AUDIT-ledger.md` (Spanish).
+A failed check aborts the operation before the device is modified.
+
+The BitBox SHA-256 is read from the same GitHub release metadata as the
+binary. It provides integrity, not authenticity; authenticity comes from the
+bootloader's signature verification. The host does not claim otherwise. The Ledger
+backend review is documented in `docs/REVIEW-ledger.md` (Spanish).
 
 ### Release verification
 
@@ -162,15 +166,24 @@ gh attestation verify hwfw-trezor-X.Y.Z-x86_64.AppImage \
   Not every model has been tested.
 - This is not a wallet manager: it does not store seeds, sign transactions, or
   read xpubs.
+- Ledger integration pins `livecommonversion` (overridable with the
+  `LIVE_COMMON_VERSION` environment variable) and may break if the vendor
+  changes its API. Offline genuine checks use the issuer keys known to this
+  project; an unrecognized model is reported as unverified, not as counterfeit.
+- The legacy Tk interface (`--tk`) exposes an optional BIP85 Lightning seed
+  export to the host. The Qt interface only displays the BIP39 mnemonic on the
+  device.
+- The interface and logs are in Spanish; the documentation is in English.
 - Flashing firmware carries risk. An interrupted operation can render the
   device unusable. The software is provided without warranty; see `SECURITY.md`.
 
 ## Requirements
 
 - Linux (x86_64).
-- Python 3.11 or newer and `venv` when running from source.
+- Python 3.12 or newer and `venv` when running from source.
 - USB access to the device; the `.deb` packages install the required udev
   rules.
+- `squashfs-tools` when building AppImages from source.
 
 ## Installation
 
@@ -217,14 +230,15 @@ download.
 
 ## Reproducible builds
 
-`packaging/build_linux.sh` sets `PYTHONHASHSEED=0` and pins PyInstaller. With
+`packaging/build_linux.sh` sets `PYTHONHASHSEED=0` and pins PyInstaller. The AppImage runtime is pinned by
+SHA-256. With
 identical Python and dependency versions, rebuilding a tag produces
 byte-identical files.
 
 Verified on the `v0.1.0` tag: two builds in place and one from a different
 directory produced 487/487 identical files. `v0.1.2` uses the same settings and
-is built from the tag in CI. Dependencies are pinned in `requirements.txt` and
-`packaging/build_linux.sh`.
+is built from the tag in CI. Dependencies are pinned with hashes in `requirements.txt`, and CI actions are
+pinned by commit SHA.
 
 ## Development
 

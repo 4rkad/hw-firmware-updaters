@@ -473,8 +473,10 @@ class BitBoxWindow(QMainWindow):
         color = LOG_COLORS.get(tag, LOG_COLORS[""])
         self.logbox.append(f'<span style="color:{color}">{html.escape(str(msg))}</span>')
         try:
-            with open(_log_path(), "a", encoding="utf-8") as fh:
-                fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{tag or 'info'}] {msg}\\n")
+            fd = os.open(_log_path(), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{tag or 'info'}] {msg}\n")
+            os.chmod(_log_path(), 0o600)
         except Exception:
             pass
 
@@ -1055,11 +1057,11 @@ class BitBoxWindow(QMainWindow):
         self.set_row(self.rel_hash, (dev_hash[:16] + "…") if dev_hash else "—")
         self.rel_hash.itemAt(2).widget().setToolTip(dev_hash or "El release no publica hash de firmware.")
         msg = (
-            f"Se instalará la ruta: {chain}\\n"
-            f"Edición: {edition}\\n"
-            f"Origen: GitHub de BitBoxSwiss (SHA-256 y magic verificados)\\n"
-            + (f"Hash que mostrará el dispositivo: {plan['dev_hash']}\\n" if plan.get("dev_hash") else "")
-            + "\\nNo desconectes el dispositivo durante el flasheo."
+            f"Se instalará la ruta: {chain}\n"
+            f"Edición: {edition}\n"
+            f"Origen: GitHub de BitBoxSwiss (SHA-256 y magic verificados)\n"
+            + (f"Hash que mostrará el dispositivo: {plan['dev_hash']}\n" if plan.get("dev_hash") else "")
+            + "\nNo desconectes el dispositivo durante el flasheo."
         )
         if not ConfirmDialog(self, "Actualizar firmware", msg, confirm="Instalar firmware").exec():
             self.append_log("Actualización cancelada por el usuario.", "warn")

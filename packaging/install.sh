@@ -16,7 +16,7 @@ install_one() {
     echo "· $label"
     if [ ! -d "$ROOT/$dir/.venv" ]; then
         python3 -m venv "$ROOT/$dir/.venv"
-        "$ROOT/$dir/.venv/bin/pip" install -q -r "$ROOT/$dir/requirements.txt"
+        "$ROOT/$dir/.venv/bin/pip" install -q --require-hashes -r "$ROOT/$dir/requirements.txt"
     fi
     install -Dm644 "$ROOT/icons/$key.png" "$ICONS/hwfw-$key.png"
     cat > "$APPS/hwfw-$key.desktop" <<EOF

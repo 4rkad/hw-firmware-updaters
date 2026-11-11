@@ -4,7 +4,9 @@ VERSION ?= 0.1.2
 .PHONY: test lint screenshots build clean
 
 test:
-	$(PYTHON) -m pytest -q ledger/tests
+	cd ledger && .venv/bin/python -m pytest -q tests
+	cd trezor && .venv/bin/python -m pytest -q tests
+	cd bitbox && .venv/bin/python -m pytest -q tests
 
 lint:
 	ruff check trezor ledger bitbox common docs/make_screenshots.py

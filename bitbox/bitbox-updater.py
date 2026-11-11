@@ -61,7 +61,15 @@ STEPS_RE = re.compile(
     r"you first must install and run \[?firmware v(\d+\.\d+\.\d+)"
 )
 DEVICE_HASH_RE = re.compile(r"- (BitBox02[^:`]*): `([0-9a-f]{64})`")
-PAIRING_FILE = os.path.expanduser("~/.cache/bitbox-updater-pairing.json")
+def _pairing_paths():
+    data = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+    return (
+        os.path.join(data, "hwfw", "bitbox-pairing.json"),
+        os.path.expanduser("~/.cache/bitbox-updater-pairing.json"),
+    )
+
+
+PAIRING_FILE, LEGACY_PAIRING_FILE = _pairing_paths()
 
 # product_string USB -> (plataforma, edición)
 NORMAL_IDS = {
@@ -105,14 +113,24 @@ class PairingStore(BitBoxNoiseConfig):
             with open(PAIRING_FILE) as fh:
                 self._data = json.load(fh)
         except Exception:
-            pass
+            try:
+                with open(LEGACY_PAIRING_FILE) as fh:
+                    self._data = json.load(fh)
+                self._save()
+                os.remove(LEGACY_PAIRING_FILE)
+            except Exception:
+                pass
         self._callback_log = None
 
     def _save(self):
         try:
-            os.makedirs(os.path.dirname(PAIRING_FILE), exist_ok=True)
-            with open(PAIRING_FILE, "w") as fh:
+            os.makedirs(os.path.dirname(PAIRING_FILE), mode=0o700, exist_ok=True)
+            tmp = PAIRING_FILE + ".tmp"
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(self._data, fh)
+            os.replace(tmp, PAIRING_FILE)
+            os.chmod(PAIRING_FILE, 0o600)
         except Exception:
             pass
 
@@ -258,14 +276,16 @@ def verify_blob(data, asset, platform, edition, log):
     digest = hashlib.sha256(data).hexdigest()
     expected = (asset.get("digest") or "").split("sha256:", 1)[-1]
     log(f"SHA-256: {digest}")
-    if expected and digest != expected:
+    if not expected:
+        raise RuntimeError("El release no publica SHA-256 del asset — abortando")
+    if digest != expected:
         raise RuntimeError("El SHA-256 NO coincide con el de GitHub — abortando")
     magic, _sigdata, fw = parse_signed_firmware(data)
     if magic != EDITION_MAGIC[(platform, edition)]:
         raise RuntimeError(
             "El firmware es de otra edición que el dispositivo — abortando"
         )
-    log(f"Imagen: {EDITION_LABEL[(platform, edition)]} · {len(fw)} bytes · firmado")
+    log(f"Imagen: {EDITION_LABEL[(platform, edition)]} · {len(fw)} bytes · contenedor firmado (firma validada por el bootloader)")
     return fw
 
 

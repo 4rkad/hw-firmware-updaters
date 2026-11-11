@@ -487,8 +487,10 @@ class TrezorWindow(QMainWindow):
         color = LOG_COLORS.get(tag, LOG_COLORS[""])
         self.logbox.append(f'<span style="color:{color}">{html.escape(str(msg))}</span>')
         try:
-            with open(_log_path(), "a", encoding="utf-8") as fh:
+            fd = os.open(_log_path(), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as fh:
                 fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{tag or 'info'}] {msg}\n")
+            os.chmod(_log_path(), 0o600)
         except Exception:
             pass
         self.logbox.verticalScrollBar().setValue(self.logbox.verticalScrollBar().maximum())

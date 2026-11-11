@@ -58,7 +58,7 @@ except ImportError:
 LEDGER_VID = 0x2C97
 MANAGER_API = "https://manager.api.live.ledger.com/api"
 SOCKET_BASE = "wss://scriptrunner.api.live.ledger.com/update"
-LIVE_COMMON_VERSION = "38.6.0"
+LIVE_COMMON_VERSION = os.environ.get("LIVE_COMMON_VERSION", "38.6.0")
 USER_AGENT = "ledger-updater"
 
 # targetId -> nombre del modelo
@@ -586,7 +586,11 @@ def offline_genuine_check(path, log) -> bool:
             log(f"Clave pública del dispositivo: {result['device_public_key']}", "dim")
             log(f"Signer serial: {result['signer_serial']}", "dim")
         elif result["issuer"] is None:
-            log("El certificado del dispositivo no coincide con la clave de issuer de Ledger.", "error")
+            log(
+                "No se pudo verificar el certificado con las claves de issuer conocidas "
+                "(posible modelo nuevo). Esto no implica que el dispositivo no sea genuino.",
+                "warn",
+            )
         else:
             log("Certificado válido, pero falló la prueba de posesión de la clave.", "error")
         return result["genuine"]
@@ -750,7 +754,7 @@ def fetch_text(url: str) -> str:
         return resp.read().decode()
 
 
-def run_apdu_script(dev: LedgerHID, script: str, log, progress):
+def parse_apdu_script(script: str) -> list[bytes]:
     apdus = []
     for line in script.splitlines():
         line = line.split("#", 1)[0].strip().replace(" ", "")
@@ -758,6 +762,11 @@ def run_apdu_script(dev: LedgerHID, script: str, log, progress):
             apdus.append(bytes.fromhex(line))
     if not apdus:
         raise RuntimeError("El script APDU del pack de idioma está vacío")
+    return apdus
+
+
+def run_apdu_script(dev: LedgerHID, script, log, progress):
+    apdus = parse_apdu_script(script) if isinstance(script, str) else list(script)
     total = len(apdus)
     for i, apdu in enumerate(apdus, 1):
         sw, _ = dev.exchange(apdu, timeout_ms=120000)
@@ -797,12 +806,13 @@ def install_language_pack(dev, device_version_id, final_firmware_id, lang_id, lo
     pack = candidates[0]
     log(f"Reinstalando pack de idioma {name} {pack.get('version', '')}…", "accent")
     script = fetch_text(pack["apdu_install_url"])
+    apdus = parse_apdu_script(script)
     for installed in list_language_packs(dev):
         try:
             delete_language_pack(dev, installed["id"])
         except Exception as exc:
             log(f"No se pudo borrar el pack anterior: {exc}", "warn")
-    run_apdu_script(dev, script, log, progress)
+    run_apdu_script(dev, apdus, log, progress)
     log(f"Pack de idioma {name} instalado.", "ok")
 
 

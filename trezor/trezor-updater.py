@@ -156,7 +156,9 @@ def verify_firmware(data, expected_fingerprint, expected_model_names, log):
         log(f"Imagen: {fw_model.name} firmware v{ver}, vendor '{fw.vendor_header.text}'")
     digest = fw.digest().hex()
     log(f"Fingerprint: {digest}")
-    if expected_fingerprint and digest != expected_fingerprint:
+    if not expected_fingerprint:
+        raise RuntimeError("El release no publica fingerprint para esta edición — abortando")
+    if digest != expected_fingerprint:
         raise RuntimeError("El fingerprint NO coincide con data.trezor.io — abortando")
     try:
         fw.verify()
