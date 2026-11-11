@@ -157,6 +157,30 @@ warranty; read `SECURITY.md` before using it with real funds.
 - This is not a wallet manager: it does not store seeds, sign transactions or
   know your xpubs.
 
+## Verifying a release
+
+Each release publishes `SHA256SUMS` files for the AppImages and the `.deb`
+packages. Both are signed with GPG; the primary key stays offline and the
+signing subkey lives on a hardware token:
+
+```
+Primary fingerprint: B6DD B2AF 5466 FCBC 26C9  A48E 08D4 B2CC 5280 22BB
+Signing subkey:      AAF4 C3A9 E887 D99F D3D3  4D3A A190 5437 5E2C 3191
+```
+
+```bash
+gpg --import docs/KEY.asc          # or fetch the key from a keyserver
+gpg --verify SHA256SUMS-appimage.asc SHA256SUMS-appimage
+sha256sum -c SHA256SUMS-appimage
+
+gpg --verify SHA256SUMS-deb.asc SHA256SUMS-deb
+sha256sum -c SHA256SUMS-deb
+```
+
+A good signature proves the checksums were signed by that key; the checksums in
+turn prove the files were not modified. Signing does not prove how a binary was
+built, only who signed the result.
+
 ## Usage
 
 ### Prebuilt Linux binaries
