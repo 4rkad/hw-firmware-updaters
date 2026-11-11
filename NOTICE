@@ -1,0 +1,35 @@
+hw-firmware-updaters
+Copyright (c) 2026 Arkad
+
+This product includes software developed by third parties. Their notices and
+licenses are reproduced or referenced below; full texts are in `licenses/`.
+
+Third-party components
+----------------------
+- Qt / PySide6 — LGPL-3.0-only (or GPL-2.0/GPL-3.0). Copyright The Qt Company.
+  https://www.qt.io
+- trezorlib, part of the Trezor Python package — LGPL-3.0-only.
+  Copyright SatoshiLabs. https://github.com/trezor/trezor-firmware
+- bitbox02 Python library — Apache-2.0. Copyright Shift Crypto AG.
+  https://github.com/BitBoxSwiss/bitbox02-firmware
+- cryptography — Apache-2.0 OR BSD-3-Clause. Copyright The Python Cryptographic
+  Authority and individual contributors. https://github.com/pyca/cryptography
+- hidapi — BSD-3-Clause or GPL-3.0. Copyright Alan Ott and contributors.
+  https://github.com/libusb/hidapi
+- websocket-client — Apache-2.0. Copyright liris and contributors.
+- requests — Apache-2.0. Copyright Kenneth Reitz and contributors.
+- Inter typeface — SIL Open Font License 1.1. Copyright The Inter Project
+  Authors. See `common/fonts/OFL.txt`.
+
+LGPL compliance
+---------------
+PySide6/Qt and trezorlib are used as separate, unmodified libraries. The full
+source of this project and the scripts needed to rebuild the combined work are
+published in this repository, so the LGPL components can be replaced with
+modified versions and the application rebuilt. The Qt shared libraries shipped
+with the AppImage/.deb can also be replaced in place in the onedir bundle.
+Upstream sources are available at the links above.
+
+No warranty
+-----------
+This software is provided "as is", without warranty of any kind. See LICENSE.

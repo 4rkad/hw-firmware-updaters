@@ -16,7 +16,8 @@ are downloaded at runtime from official sources and verified before use.
 | `PySide6` | 6.8.3 | LGPL-3.0-only / GPL-2.0 / GPL-3.0 | GUI |
 
 They are installed as external dependencies through `requirements.txt`; their
-sources are neither modified nor included here.
+sources are neither modified nor included here. Full license texts are in
+`licenses/`; see also `NOTICE`.
 
 ## Font
 

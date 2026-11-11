@@ -260,4 +260,5 @@ Code under MIT (`LICENSE`). Dependencies and font in `THIRD_PARTY.md`.
 
 Trezor® is a trademark of SatoshiLabs s.r.o. Ledger® is a trademark of Ledger
 SAS. BitBox® is a trademark of Shift Crypto AG. This project does not use their
-logos and implies no affiliation or endorsement.
+logos and implies no affiliation or endorsement. See `TRADEMARKS.md`, `NOTICE`,
+and `docs/LEGAL.md` for details.

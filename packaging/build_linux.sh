@@ -82,6 +82,14 @@ EOF
     esac
 }
 
+copy_docs() {
+    local dest="$1"
+    mkdir -p "$dest/licenses"
+    cp "$ROOT/LICENSE" "$ROOT/NOTICE" "$ROOT/THIRD_PARTY.md" "$ROOT/TRADEMARKS.md" "$dest/"
+    cp "$ROOT"/licenses/*.txt "$dest/licenses/"
+    cp "$ROOT/common/fonts/OFL.txt" "$dest/licenses/OFL-1.1.txt"
+}
+
 desktop_entry() {
     local key="$1"
     cat <<EOF
@@ -134,6 +142,7 @@ build_appimage() {
     mkdir -p "$appdir"
     cp -a "$DIST/hwfw-$key/." "$appdir/"
     cp "$ROOT/icons/$key.png" "$appdir/hwfw-$key.png"
+    copy_docs "$appdir/usr/share/doc/hwfw"
     ln -sf "hwfw-$key.png" "$appdir/.DirIcon"
     desktop_entry "$key" > "$appdir/hwfw-$key.desktop"
     cat > "$appdir/AppRun" <<EOF
@@ -162,6 +171,17 @@ build_deb() {
     cp -a "$DIST/$pkg/." "$stage/opt/hwfw/$key/"
     desktop_entry "$key" > "$stage/usr/share/applications/$pkg.desktop"
     cp "$ROOT/icons/$key.png" "$stage/usr/share/icons/hicolor/512x512/apps/$pkg.png"
+    copy_docs "$stage/usr/share/doc/$pkg"
+    {
+        echo "This package is distributed under the MIT license:"
+        echo
+        sed 's/^/    /' "$ROOT/LICENSE"
+        echo
+        echo "Third-party components, notices and full license texts:"
+        echo "  /usr/share/doc/$pkg/THIRD_PARTY.md"
+        echo "  /usr/share/doc/$pkg/NOTICE"
+        echo "  /usr/share/doc/$pkg/licenses/"
+    } > "$stage/usr/share/doc/$pkg/copyright"
     udev_rule "$key" > "$stage/lib/udev/rules.d/60-$pkg.rules"
     cat > "$stage/usr/bin/$pkg" <<EOF
 #!/bin/sh
