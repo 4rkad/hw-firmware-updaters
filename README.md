@@ -159,6 +159,21 @@ warranty; read `SECURITY.md` before using it with real funds.
 
 ## Usage
 
+### Prebuilt Linux binaries
+
+The [releases page](../../releases) ships, for each app:
+
+- **AppImage** (x86_64): portable, no installation. Make it executable and run
+  it. It needs udev rules for the vendor's USB IDs; the `.deb` installs them,
+  or use the ones your distro already provides for the vendor's suite.
+- **`.deb`** (amd64): installs to `/opt/hwfw`, adds the menu entry and the udev
+  rules for that vendor.
+
+Verify the SHA-256 checksums published with each release before running
+anything.
+
+### From source
+
 Requirements: Linux, Python 3.11+ and `venv`.
 
 ```bash
@@ -173,6 +188,17 @@ Install the application-menu entries:
 ./packaging/install.sh
 ./packaging/install.sh --uninstall
 ```
+
+### Build AppImage and .deb
+
+```bash
+VERSION=0.1.0 ./packaging/build_linux.sh
+```
+
+The script runs PyInstaller for each app and produces `build/appimage/` and
+`build/deb/`, with SHA-256 files. Python interpreters can be overridden with
+`PY_TREZOR`, `PY_LEDGER` and `PY_BITBOX`. It is intentionally unsigned: sign
+the artifacts yourself if you redistribute them.
 
 Regenerate the README screenshots without hardware, using sample data:
 
