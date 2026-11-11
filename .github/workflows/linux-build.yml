@@ -1,0 +1,71 @@
+name: Linux builds
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install per-app dependencies
+        run: |
+          python -m pip install --upgrade pip
+          for app in trezor ledger bitbox; do
+            python -m venv "$app/.venv"
+            "$app/.venv/bin/pip" install -q -r "$app/requirements.txt"
+            "$app/.venv/bin/pip" install -q "pyinstaller==6.22.3"
+          done
+          ledger/.venv/bin/pip install -q pytest
+
+      - name: Backend tests
+        run: cd ledger && ../ledger/.venv/bin/python -m pytest -q tests
+
+      - name: Build AppImage and .deb
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+          PY_TREZOR: ${{ github.workspace }}/trezor/.venv/bin/python
+          PY_LEDGER: ${{ github.workspace }}/ledger/.venv/bin/python
+          PY_BITBOX: ${{ github.workspace }}/bitbox/.venv/bin/python
+        run: |
+          VERSION="${VERSION#v}"
+          ./packaging/build_linux.sh
+
+      - name: Smoke test (start each app headless)
+        run: |
+          for key in trezor ledger bitbox; do
+            QT_QPA_PLATFORM=offscreen timeout 30 \
+              "build/dist/hwfw-$key/hwfw-$key" --screenshot "/tmp/$key.png"
+            test -s "/tmp/$key.png"
+          done
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            build/appimage/*.AppImage
+            build/deb/*.deb
+            build/release/SHA256SUMS
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ github.run_id }}
+          if-no-files-found: error
+          path: |
+            build/appimage/*.AppImage
+            build/deb/*.deb
+            build/release/SHA256SUMS

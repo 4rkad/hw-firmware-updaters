@@ -203,8 +203,9 @@ for key in trezor ledger bitbox; do
     build_deb "$key"
 done
 
-(cd "$APPIMAGE_DIST" && sha256sum ./*.AppImage > SHA256SUMS)
-(cd "$DEB_DIST" && sha256sum ./*.deb > SHA256SUMS)
+mkdir -p "$BUILD/release"
+(cd "$APPIMAGE_DIST" && sha256sum ./*.AppImage) > "$BUILD/release/SHA256SUMS"
+(cd "$DEB_DIST" && sha256sum ./*.deb) >> "$BUILD/release/SHA256SUMS"
 echo
 echo "Listo:"
 ls -lh "$APPIMAGE_DIST" "$DEB_DIST"
