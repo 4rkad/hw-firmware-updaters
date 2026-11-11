@@ -42,8 +42,13 @@ from PySide6.QtWidgets import (
 )
 
 ROOT = Path(__file__).resolve().parent
-ICON = ROOT.parent / "icons" / "ledger.png"
-BACKEND_PATH = ROOT / "ledger-updater.py"
+def _res(*parts):
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    return base.joinpath(*parts)
+
+
+ICON = _res("icons", "ledger.png")
+BACKEND_PATH = _res("ledger-updater.py") if getattr(sys, "_MEIPASS", None) else ROOT / "ledger-updater.py"
 
 spec = importlib.util.spec_from_file_location("ledger_backend", BACKEND_PATH)
 backend = importlib.util.module_from_spec(spec)
@@ -1406,7 +1411,7 @@ def main() -> int:
     app.setApplicationName("Actualizador de firmware (Ledger)")
     app.setStyle("Fusion")
     app.setStyleSheet(QSS)
-    font_path = ROOT.parent / "common" / "fonts" / "InterVariable.ttf"
+    font_path = _res("common", "fonts", "InterVariable.ttf")
     if font_path.exists():
         fid = QFontDatabase.addApplicationFont(str(font_path))
         families = QFontDatabase.applicationFontFamilies(fid)

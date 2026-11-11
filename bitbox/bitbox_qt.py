@@ -54,8 +54,13 @@ from ui_common import (
 )
 
 ROOT = Path(__file__).resolve().parent
-ICON = ROOT.parent / "icons" / "bitbox.png"
-BACKEND_PATH = ROOT / "bitbox-updater.py"
+def _res(*parts):
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    return base.joinpath(*parts)
+
+
+ICON = _res("icons", "bitbox.png")
+BACKEND_PATH = _res("bitbox-updater.py") if getattr(sys, "_MEIPASS", None) else ROOT / "bitbox-updater.py"
 
 def _log_path() -> Path:
     base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
@@ -1147,7 +1152,7 @@ def main() -> int:
     app.setApplicationName("Actualizador de firmware (BitBox)")
     app.setStyle("Fusion")
     app.setStyleSheet(QSS)
-    install_font(app, ROOT.parent / "common" / "fonts" / "InterVariable.ttf")
+    install_font(app, _res("common", "fonts", "InterVariable.ttf"))
     win = BitBoxWindow()
     win.show()
     QTimer.singleShot(80, lambda: win.resize(1180, 820))

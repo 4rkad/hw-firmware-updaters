@@ -33,8 +33,8 @@ try:
     from trezorlib import device, firmware, messages, transport
     from trezorlib.cli import TrezorConnection
     from trezorlib.exceptions import Cancelled
-except ImportError:
-    print("Falta trezorlib. Instala con:  pip install -U trezor")
+except Exception as exc:
+    print(f"Falta trezorlib o una dependencia ({exc}). Instala con: pip install -U trezor")
     sys.exit(1)
 
 PIN_DESCRIPTIONS = {
