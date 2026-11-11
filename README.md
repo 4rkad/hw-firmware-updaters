@@ -174,15 +174,9 @@ gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c SHA256SUMS
 ```
 
-Each artifact also ships a detached signature (`<file>.asc`), so a single file
-can be checked without the checksum list:
-
-```bash
-gpg --verify hwfw-trezor-0.1.0-x86_64.AppImage.asc hwfw-trezor-0.1.0-x86_64.AppImage
-```
-
-A good signature proves the file was signed by that key. Signing does not prove
-how a binary was built, only who signed the result.
+A good signature proves the checksums were signed by that key, and the
+checksums prove the files were not modified. Signing does not prove how a
+binary was built, only who signed the result.
 
 ## Usage
 
