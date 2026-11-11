@@ -1,0 +1,13 @@
+line-length = 120
+
+[lint]
+# Reglas de corrección + seguridad + simplicidad. La GUI captura excepciones
+# de forma deliberada para que un fallo de un worker no tumbe el bucle de
+# eventos de Tkinter; el detalle se registra en el log o se muestra al usuario
+# cuando aplica, por eso BLE001/S110 se ignoran en este archivo.
+# E501/E731/SIM105: mensajes largos, lambdas de log y limpieza de recursos.
+select = ["E", "F", "W", "B", "S", "SIM", "RUF"]
+ignore = ["E501", "E731", "SIM105"]
+
+[lint.per-file-ignores]
+"ledger-updater.py" = ["BLE001", "S110"]
