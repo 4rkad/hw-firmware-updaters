@@ -78,7 +78,9 @@ legal dispute, consult a lawyer.
 - [x] License texts and notices in the repository.
 - [x] Disclaimer and trademark policy.
 - [x] License/notice files included in packages.
-- [ ] Publish the public key (GitHub account and/or keyserver).
-- [ ] Rebuild release artifacts so they include the license files (v0.1.2).
+- [x] Publish the public key (GitHub account, both UIDs; tag shown as Verified).
+- [ ] Verify the keyserver email (keys.openpgp.org) to expose the UID there.
+- [x] Rebuild release artifacts so they include the license files (v0.1.2, built and attested in CI).
+- [ ] Optional: remove the older v0.1.0/v0.1.1 releases, whose packages predate the license notices.
 - [ ] Optional: first-run risk acknowledgement.
 - [ ] Optional: legal review if the project becomes commercial.
