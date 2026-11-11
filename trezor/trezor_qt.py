@@ -18,9 +18,6 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
-    QComboBox,
-    QDialog,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -38,16 +35,14 @@ from PySide6.QtWidgets import (
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
 
 from ui_common import (
-    ChoiceDialog,
-    ConfirmDialog,
-    DIM,
     GREEN,
-    InfoDialog,
-    InputDialog,
     LOG_COLORS,
     ORANGE,
     QSS,
-    RED,
+    ChoiceDialog,
+    ConfirmDialog,
+    InfoDialog,
+    InputDialog,
     Job,
     TextDialog,
     card,
@@ -206,12 +201,18 @@ class TrezorWindow(QMainWindow):
         return row
 
     def content(self):
-        device = self.device_card(); device.setMinimumHeight(280)
-        security = self.security_card(); security.setMinimumHeight(300)
-        firmware = self.firmware_card(); firmware.setMinimumHeight(280)
-        release = self.release_card(); release.setMinimumHeight(300)
-        activity = self.activity_card(); activity.setMinimumHeight(280)
-        manage = self.manage_card(); manage.setMinimumHeight(300)
+        device = self.device_card()
+        device.setMinimumHeight(280)
+        security = self.security_card()
+        security.setMinimumHeight(300)
+        firmware = self.firmware_card()
+        firmware.setMinimumHeight(280)
+        release = self.release_card()
+        release.setMinimumHeight(300)
+        activity = self.activity_card()
+        activity.setMinimumHeight(280)
+        manage = self.manage_card()
+        manage.setMinimumHeight(300)
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)

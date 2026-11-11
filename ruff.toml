@@ -1,0 +1,24 @@
+line-length = 120
+
+[lint]
+# Correctness, security, imports and simplification. Broad exception handling
+# and asserts are deliberate in the GUI/backends (a worker failure must not take
+# down the event loop; cleanup paths swallow errors), so those rules are
+# disabled globally with the rationale below.
+select = ["E", "F", "W", "B", "S", "SIM", "I", "RUF"]
+ignore = [
+    "E501",   # long lines: messages and UI strings
+    "E731",   # lambdas as log callbacks
+    "SIM105", # contextlib.suppress in cleanup paths
+    "BLE001", # blind except in worker/cleanup paths
+    "S110",   # try/except/pass in cleanup
+    "S101",   # asserts used for invariants
+    "ISC004", # implicit string concatenation in message tuples
+]
+
+[lint.per-file-ignores]
+# The Qt entry points add common/ to sys.path before importing ui_common.
+"trezor/trezor_qt.py" = ["E402"]
+"bitbox/bitbox_qt.py" = ["E402"]
+"ledger/ledger_qt.py" = ["E402"]
+"docs/make_screenshots.py" = ["E402"]

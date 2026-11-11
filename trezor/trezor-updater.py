@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 from importlib.metadata import version as pkg_version
+from typing import ClassVar
 
 DATA_BASE = "https://data.trezor.io/"
 
@@ -161,13 +162,13 @@ def verify_firmware(data, expected_fingerprint, expected_model_names, log):
         fw.verify()
         log("Firma verificada contra las claves públicas de Trezor: OK")
     except firmware.Unsigned:
-        raise RuntimeError("Firmware sin firma — abortando")
+        raise RuntimeError("Firmware sin firma — abortando") from None
     except firmware.FirmwareIntegrityError:
         try:
             fw.verify(dev_keys=True)
-            raise RuntimeError("Firmware firmado con claves de DESARROLLO — abortando")
+            raise RuntimeError("Firmware firmado con claves de DESARROLLO — abortando") from None
         except firmware.FirmwareIntegrityError:
-            raise RuntimeError("Firma de firmware INVÁLIDA — abortando")
+            raise RuntimeError("Firma de firmware INVÁLIDA — abortando") from None
     return fw, digest
 
 
@@ -178,9 +179,7 @@ def device_model_names(model):
 def bitcoin_only_from_features(features):
     if features.bootloader_mode:
         return bool(features.unit_btconly)
-    if messages.Capability.Bitcoin_like not in features.capabilities:
-        return True
-    return False
+    return messages.Capability.Bitcoin_like not in features.capabilities
 
 
 LANG_LABELS = {
@@ -954,7 +953,7 @@ class App:
 
     # ---- Gestión del dispositivo (passphrase, PIN, wallet) ----
 
-    BACKUP_OPTIONS = {
+    BACKUP_OPTIONS: ClassVar[dict] = {
         "slip39-20": ("slip39", 128, messages.BackupType.Slip39_Single_Extendable),
         "slip39-33": ("slip39", 256, messages.BackupType.Slip39_Single_Extendable),
         "slip39-multi": ("slip39", 128, messages.BackupType.Slip39_Basic_Extendable),
@@ -1669,7 +1668,7 @@ class App:
             raise RuntimeError(
                 "trezorlib no soporta verificación de autenticidad "
                 "(actualiza: pip install -U trezor)"
-            )
+            ) from None
         conn = make_connection()
         try:
             client = self.managed_client(conn)
@@ -1690,7 +1689,7 @@ class App:
                 raise RuntimeError(
                     "El firmware no soporta la verificación de autenticidad — "
                     "actualiza el firmware e inténtalo de nuevo"
-                )
+                ) from None
             serial = None
             try:
                 resp = device.authenticate(session, secrets.token_bytes(16))

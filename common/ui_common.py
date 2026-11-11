@@ -156,13 +156,13 @@ def card(title: str | None = None):
 def kv(label: str, value: str, color: str | None = None):
     row = QHBoxLayout()
     row.setSpacing(8)
-    l = QLabel(label)
-    l.setObjectName("dim")
+    lbl = QLabel(label)
+    lbl.setObjectName("dim")
     v = QLabel(value)
     v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     if color:
         v.setStyleSheet(f"color: {color}; font-weight: 600;")
-    row.addWidget(l)
+    row.addWidget(lbl)
     row.addStretch(1)
     row.addWidget(v)
     return row
@@ -275,9 +275,9 @@ class ConfirmDialog(BaseDialog):
 class ChoiceDialog(BaseDialog):
     def __init__(self, parent, title: str, label: str, options, current: int = 0):
         super().__init__(parent, title)
-        l = QLabel(label)
-        l.setObjectName("dim")
-        self.lay.addWidget(l)
+        lbl = QLabel(label)
+        lbl.setObjectName("dim")
+        self.lay.addWidget(lbl)
         self.combo = QComboBox()
         self.combo.addItems(list(options))
         if 0 <= current < self.combo.count():
@@ -295,10 +295,10 @@ class ChoiceDialog(BaseDialog):
 class InputDialog(BaseDialog):
     def __init__(self, parent, title: str, label: str, initial: str = "", password: bool = False):
         super().__init__(parent, title)
-        l = QLabel(label)
-        l.setObjectName("dim")
-        l.setWordWrap(True)
-        self.lay.addWidget(l)
+        lbl = QLabel(label)
+        lbl.setObjectName("dim")
+        lbl.setWordWrap(True)
+        self.lay.addWidget(lbl)
         self.edit = QLineEdit(initial)
         if password:
             self.edit.setEchoMode(QLineEdit.Password)

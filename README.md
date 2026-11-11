@@ -85,8 +85,8 @@ in any request this code makes.
 **BitBox**
 - Detects **BitBox02 and BitBox02 Nova**, in normal or bootloader mode, edition
   (Multi / Bitcoin-only) and version.
-- Verifies asset SHA-256, edition magic and signature; follows intermediate
-  firmware versions when required.
+- Verifies the asset SHA-256 and edition magic; the bootloader verifies the
+  firmware signature. Follows intermediate firmware versions when required.
 - Device attestation on connect.
 - Pairing code shown in a dialog, not buried in the log.
 - Management: passphrase, microSD backup, show seed, create/restore wallet,
@@ -109,8 +109,9 @@ The structure is deliberately simple:
   firmware. Every operation has a timeout and leaves the UI in a consistent
   state on failure.
 - **Direct USB HID transport**, no Bridge and no daemon.
-- **Download and verify on the client**: SHA-256, signature/magic, model and
-  edition. If anything does not match, it aborts before touching the device.
+- **Download and verify on the client**: SHA-256, magic, model and edition,
+  plus signatures where the host can check them. If anything does not match,
+  it aborts before touching the device.
 - **Logs in `~/.cache/<app>.log`**, local only.
 
 ## Where everything comes from
@@ -134,8 +135,8 @@ Each app checks what it can before writing:
 
 - **Trezor**: firmware is parsed with `trezorlib`, and the model and published
   fingerprint for that edition are checked.
-- **BitBox**: asset SHA-256 against the published value, edition magic and
-  signature; plus device attestation on connect.
+- **BitBox**: asset SHA-256 against the published value and edition magic;
+  the bootloader verifies the signature. Device attestation on connect.
 - **Ledger**: firmware checks and the HSM response for genuineness; details in
   `docs/AUDIT-ledger.md` (Spanish).
 
@@ -164,9 +165,11 @@ Each release publishes a single `SHA256SUMS` file covering every AppImage and
 lives on a hardware token:
 
 ```
-Primary fingerprint: B6DD B2AF 5466 FCBC 26C9  A48E 08D4 B2CC 5280 22BB
-Signing subkey:      AAF4 C3A9 E887 D99F D3D3  4D3A A190 5437 5E2C 3191
+B6DD B2AF 5466 FCBC 26C9  A48E 08D4 B2CC 5280 22BB
 ```
+
+Signatures are made by a hardware-backed signing subkey; `gpg --verify` prints
+its own fingerprint when it checks a release.
 
 ```bash
 gpg --import docs/KEY.asc          # or fetch the key from a keyserver
@@ -178,11 +181,22 @@ A good signature proves the checksums were signed by that key, and the
 checksums prove the files were not modified. Signing does not prove how a
 binary was built, only who signed the result.
 
+## Development
+
+```bash
+make lint          # ruff
+make test          # backend tests
+make screenshots   # regenerate docs/screenshots
+make build         # AppImage + .deb
+```
+
+Release process: `docs/RELEASE.md`. Contribution rules: `CONTRIBUTING.md`.
+
 ## Usage
 
 ### Prebuilt Linux binaries
 
-The [releases page](../../releases) ships, for each app:
+The [releases page](https://github.com/4rkad/hw-firmware-updaters/releases) ships, for each app:
 
 - **AppImage** (x86_64): portable, no installation. Make it executable and run
   it. It needs udev rules for the vendor's USB IDs; the `.deb` installs them,
@@ -213,13 +227,14 @@ Install the application-menu entries:
 ### Build AppImage and .deb
 
 ```bash
-VERSION=0.1.0 ./packaging/build_linux.sh
+VERSION=0.1.2 ./packaging/build_linux.sh
 ```
 
-The script runs PyInstaller for each app and produces `build/appimage/` and
-`build/deb/`, with SHA-256 files. Python interpreters can be overridden with
-`PY_TREZOR`, `PY_LEDGER` and `PY_BITBOX`. It is intentionally unsigned: sign
-the artifacts yourself if you redistribute them.
+The script runs PyInstaller for each app and produces `build/appimage/`,
+`build/deb/` and `build/release/SHA256SUMS`. Python interpreters can be
+overridden with `PY_TREZOR`, `PY_LEDGER` and `PY_BITBOX`. PyInstaller is pinned;
+CI does not hold the signing key, so artifacts are signed by the maintainer
+after download.
 
 Regenerate the README screenshots without hardware, using sample data:
 
@@ -233,32 +248,30 @@ The Linux build is deterministic. `packaging/build_linux.sh` sets
 `PYTHONHASHSEED=0`, so a clean checkout of a tag produces byte-identical files
 given the same Python and dependency versions.
 
-Verified with `v0.1.0` (Trezor): the tag was built twice in place and once from a
-different directory; **487/487 files were identical** each time.
-
-The published `v0.1.0` artifacts were produced before this setting was added.
-Compared with a rebuild, every file is byte-identical except
-`_internal/base_library.zip`, which holds the same entries and module contents
-but in a different internal order. From the next release on, artifacts match a
-rebuild exactly.
+Verified on the `v0.1.0` tag (Trezor): built twice in place and once from a
+different directory, **487/487 files identical**. `v0.1.2` uses the same
+settings and is built from the tag in CI. Reproducing it requires the same
+Python and dependency versions; they are pinned in `requirements.txt` and
+`packaging/build_linux.sh`.
 
 ## Layout
 
 ```
+.github/       CI: build, tests, smoke test, provenance attestation
 common/        shared UI (theme, dialogs, jobs) and Inter font
 trezor/        Qt app, backend and Tkinter mode
-ledger/        Qt app, backend, tests and audit
+ledger/        Qt app, backend and tests
 bitbox/        Qt app and backend
 icons/         original icons
-packaging/     desktop launcher installer
-docs/          screenshots and audit
+licenses/      third-party license texts
+packaging/     release build and desktop installer
+docs/          screenshots, release process and audit
 ```
 
 ## License and trademarks
 
 Code under MIT (`LICENSE`). Dependencies and font in `THIRD_PARTY.md`.
 
-Trezor® is a trademark of SatoshiLabs s.r.o. Ledger® is a trademark of Ledger
-SAS. BitBox® is a trademark of Shift Crypto AG. This project does not use their
-logos and implies no affiliation or endorsement. See `TRADEMARKS.md`, `NOTICE`,
-and `docs/LEGAL.md` for details.
+Trezor®, Ledger® and BitBox® are trademarks of their respective owners. This
+project does not use their logos and implies no affiliation or endorsement. See
+`TRADEMARKS.md` and `NOTICE`.

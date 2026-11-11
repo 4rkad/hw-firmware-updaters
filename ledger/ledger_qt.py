@@ -193,13 +193,13 @@ def card(title: str | None = None):
 def kv(label: str, value: str, color: str | None = None):
     row = QHBoxLayout()
     row.setSpacing(8)
-    l = QLabel(label)
-    l.setObjectName("dim")
+    lbl = QLabel(label)
+    lbl.setObjectName("dim")
     v = QLabel(value)
     v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     if color:
         v.setStyleSheet(f"color: {color}; font-weight: 600;")
-    row.addWidget(l)
+    row.addWidget(lbl)
     row.addStretch(1)
     row.addWidget(v)
     return row
@@ -300,12 +300,18 @@ class MainWindow(QMainWindow):
         return row
 
     def content(self):
-        device = self.device_card(); device.setMinimumHeight(280)
-        security = self.security_card(); security.setMinimumHeight(300)
-        firmware = self.firmware_card(); firmware.setMinimumHeight(280)
-        apps = self.apps_card(); apps.setMinimumHeight(300)
-        activity = self.activity_card(); activity.setMinimumHeight(280)
-        language = self.language_card(); language.setMinimumHeight(300)
+        device = self.device_card()
+        device.setMinimumHeight(280)
+        security = self.security_card()
+        security.setMinimumHeight(300)
+        firmware = self.firmware_card()
+        firmware.setMinimumHeight(280)
+        apps = self.apps_card()
+        apps.setMinimumHeight(300)
+        activity = self.activity_card()
+        activity.setMinimumHeight(280)
+        language = self.language_card()
+        language.setMinimumHeight(300)
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -479,12 +485,12 @@ class MainWindow(QMainWindow):
             ("DISPONIBLE", 0, 80),
             ("ESTADO", 0, 110),
         ):
-            l = QLabel(text)
-            l.setStyleSheet("font-size: 10px; color: #6f6f6f; font-weight: 700;")
+            lbl = QLabel(text)
+            lbl.setStyleSheet("font-size: 10px; color: #6f6f6f; font-weight: 700;")
             if width:
-                l.setFixedWidth(width)
-                l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            header.addWidget(l, stretch)
+                lbl.setFixedWidth(width)
+                lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            header.addWidget(lbl, stretch)
         lay.addLayout(header)
 
         self.apps_rows = QVBoxLayout()
@@ -887,7 +893,7 @@ class MainWindow(QMainWindow):
         installed_by = {a["name"].strip().lower(): a for a in self.installed}
         catalog_by = {a["versionName"].strip().lower(): a for a in self.catalog} if self.catalog else {}
         meta_by = {}
-        for a, m in zip(self.installed, self.meta):
+        for a, m in zip(self.installed, self.meta, strict=False):
             if m:
                 meta_by[a.get("hash", "")] = m
         names = list(installed_by.keys())[:6]
@@ -906,11 +912,11 @@ class MainWindow(QMainWindow):
             n.setStyleSheet("font-weight: 600;")
             row.addWidget(n, 1)
             for text, width in ((inst_ver, 70), (avail, 80)):
-                l = QLabel(text)
-                l.setObjectName("dim")
-                l.setFixedWidth(width)
-                l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                row.addWidget(l)
+                lbl = QLabel(text)
+                lbl.setObjectName("dim")
+                lbl.setFixedWidth(width)
+                lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                row.addWidget(lbl)
             st = QLabel(state)
             st.setStyleSheet(f"color: {color}; font-weight: 600;")
             st.setFixedWidth(110)
@@ -1143,7 +1149,7 @@ class AppsDialog(QDialog):
             return "Instalada", GREEN
         if inst.get("hash") == app.get("hash"):
             return "Actualizada", GREEN
-        meta = next((m for a, m in zip(self.installed, self.meta) if a is inst and m), None)
+        meta = next((m for a, m in zip(self.installed, self.meta, strict=False) if a is inst and m), None)
         inst_ver = (meta or {}).get("version") or ""
         avail = app.get("version") or ""
         if inst_ver and avail and backend.semver_gt(avail, inst_ver):
@@ -1169,7 +1175,7 @@ class AppsDialog(QDialog):
         self.table.setRowCount(len(rows))
         for r, (app, inst, state, color) in enumerate(rows):
             name = (app or {}).get("versionName") or inst["name"]
-            meta = next((m for a, m in zip(self.installed, self.meta) if a is inst and m), None)
+            meta = next((m for a, m in zip(self.installed, self.meta, strict=False) if a is inst and m), None)
             inst_ver = (meta or {}).get("version") or (inst or {}).get("version") or "—" if inst else "—"
             avail = app.get("version") if app else "—"
             self.table.setItem(r, 0, QTableWidgetItem(name))
@@ -1280,7 +1286,7 @@ class AppsDialog(QDialog):
             return
         apps = []
         for a in self.installed:
-            meta = next((m for x, m in zip(self.installed, self.meta) if x is a and m), None)
+            meta = next((m for x, m in zip(self.installed, self.meta, strict=False) if x is a and m), None)
             apps.append(
                 {
                     "name": a.get("name"),
@@ -1393,7 +1399,7 @@ class LanguageDialog(QDialog):
         name = (pack.get("language") or "").capitalize()
 
         def fn(log, progress):
-            dev, info = backend.open_path(self.main.path, log)
+            dev, _info = backend.open_path(self.main.path, log)
             try:
                 backend.quit_app(dev)
                 time.sleep(0.6)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build Linux artifacts: one AppImage and one .deb per app.
 #
-#   VERSION=0.1.0 ./packaging/build_linux.sh
+#   VERSION=0.1.2 ./packaging/build_linux.sh
 #
 # Python interpreters can be overridden:
 #   PY_TREZOR=/path/to/python PY_LEDGER=... PY_BITBOX=... ./packaging/build_linux.sh
@@ -11,7 +11,7 @@ set -euo pipefail
 export PYTHONHASHSEED=0
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --always 2>/dev/null | sed 's/^v//' || echo 0.0.0)}"
 PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
 BUILD="$ROOT/build"
@@ -115,7 +115,9 @@ build_pyinstaller() {
         echo "· $key: binario ya presente"
         return
     fi
-    "$py" -m pip install -q "pyinstaller==$PYINSTALLER_VERSION"
+    if ! "$py" -c "import PyInstaller" >/dev/null 2>&1; then
+        "$py" -m pip install -q "pyinstaller==$PYINSTALLER_VERSION"
+    fi
     local extra=()
     case "$key" in
         trezor) extra=(--collect-all trezorlib --copy-metadata slip10) ;;

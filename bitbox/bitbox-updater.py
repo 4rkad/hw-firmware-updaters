@@ -29,18 +29,18 @@ try:
     import semver
     from bitbox02.bitbox02 import BitBox02
     from bitbox02.bitbox02.bootloader import (
-        Bootloader,
-        SIGDATA_MAGIC_BITBOX02_MULTI,
         SIGDATA_MAGIC_BITBOX02_BTCONLY,
-        SIGDATA_MAGIC_BITBOX02PLUS_MULTI,
+        SIGDATA_MAGIC_BITBOX02_MULTI,
         SIGDATA_MAGIC_BITBOX02PLUS_BTCONLY,
+        SIGDATA_MAGIC_BITBOX02PLUS_MULTI,
+        Bootloader,
         parse_signed_firmware,
     )
     from bitbox02.communication import devices as bbdevices
     from bitbox02.communication import u2fhid
     from bitbox02.communication.bitbox_api_protocol import (
-        BitBoxNoiseConfig,
         Bitbox02Exception,
+        BitBoxNoiseConfig,
     )
 except ImportError:
     print("Falta bitbox02. Instala con:  pip install bitbox02")
@@ -260,7 +260,7 @@ def verify_blob(data, asset, platform, edition, log):
     log(f"SHA-256: {digest}")
     if expected and digest != expected:
         raise RuntimeError("El SHA-256 NO coincide con el de GitHub — abortando")
-    magic, sigdata, fw = parse_signed_firmware(data)
+    magic, _sigdata, fw = parse_signed_firmware(data)
     if magic != EDITION_MAGIC[(platform, edition)]:
         raise RuntimeError(
             "El firmware es de otra edición que el dispositivo — abortando"
@@ -992,10 +992,9 @@ class App:
             "release",
             (semver.VersionInfo.parse(target_v), latest["name"]),
         ))
-        if mode == "normal" and current is not None:
-            if semver.VersionInfo.parse(target_v) <= current:
-                self.log("El dispositivo ya tiene la última versión — nada que instalar")
-                return
+        if mode == "normal" and current is not None and semver.VersionInfo.parse(target_v) <= current:
+            self.log("El dispositivo ya tiene la última versión — nada que instalar")
+            return
 
         steps = []
         if current is not None:
@@ -1101,7 +1100,7 @@ class App:
                 client.close()
                 normals2, _ = usb_scan()
                 if not normals2:
-                    raise RuntimeError("El dispositivo desapareció")
+                    raise RuntimeError("El dispositivo desapareció") from e
                 info = normals2[0]
                 client = make_client(
                     info, self.noise,

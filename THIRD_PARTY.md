@@ -25,8 +25,4 @@ sources are neither modified nor included here. Full license texts are in
 |---|---|---|
 | Inter (variable) | SIL Open Font License 1.1 | See `common/fonts/OFL.txt` |
 
-## Trademarks
-
-Trezor is a trademark of SatoshiLabs s.r.o. Ledger is a trademark of Ledger SAS.
-BitBox is a trademark of Shift Crypto AG. They are mentioned only to describe
-compatibility. This project is not affiliated with or endorsed by any of them.
+Trademark notices: see `TRADEMARKS.md`.

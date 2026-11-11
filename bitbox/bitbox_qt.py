@@ -35,16 +35,15 @@ from PySide6.QtWidgets import (
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
 
 from ui_common import (
-    ConfirmDialog,
-    ChoiceDialog,
-    DIM,
-    InfoDialog,
-    InputDialog,
     GREEN,
     LOG_COLORS,
     ORANGE,
     QSS,
     RED,
+    ChoiceDialog,
+    ConfirmDialog,
+    InfoDialog,
+    InputDialog,
     Job,
     TextDialog,
     card,
@@ -191,12 +190,18 @@ class BitBoxWindow(QMainWindow):
         return row
 
     def content(self):
-        device = self.device_card(); device.setMinimumHeight(280)
-        security = self.security_card(); security.setMinimumHeight(300)
-        firmware = self.firmware_card(); firmware.setMinimumHeight(280)
-        release = self.release_card(); release.setMinimumHeight(300)
-        activity = self.activity_card(); activity.setMinimumHeight(280)
-        manage = self.manage_card(); manage.setMinimumHeight(300)
+        device = self.device_card()
+        device.setMinimumHeight(280)
+        security = self.security_card()
+        security.setMinimumHeight(300)
+        firmware = self.firmware_card()
+        firmware.setMinimumHeight(280)
+        release = self.release_card()
+        release.setMinimumHeight(300)
+        activity = self.activity_card()
+        activity.setMinimumHeight(280)
+        manage = self.manage_card()
+        manage.setMinimumHeight(300)
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -574,7 +579,7 @@ class BitBoxWindow(QMainWindow):
                 client.close()
                 normals, _ = backend.usb_scan()
                 if not normals:
-                    raise RuntimeError("El dispositivo desapareció")
+                    raise RuntimeError("El dispositivo desapareció") from exc
                 info = normals[0]
                 client = backend.make_client(info, self.noise, log, unlock_first=True)
                 return fn(client, log)
