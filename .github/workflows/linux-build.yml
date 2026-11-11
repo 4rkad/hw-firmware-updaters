@@ -58,6 +58,7 @@ jobs:
           done
 
       - name: Attest build provenance
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
