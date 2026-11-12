@@ -11,11 +11,13 @@ set -euo pipefail
 export PYTHONHASHSEED=0
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Normalise timestamps embedded by PyInstaller and mksquashfs.
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || echo 0)}"
 VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --always 2>/dev/null | sed 's/^v//' || echo 0.0.0)}"
-PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
+BUILD_REQUIREMENTS="$ROOT/packaging/requirements-build.txt"
 # Pinned AppImage runtime. Update the digest when bumping this URL.
-APPIMAGE_RUNTIME_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64"
-APPIMAGE_RUNTIME_SHA256="66f5b22f035022b8bdebb54c066aa6edc7b5db282fe6cdb372e7965f80772557"
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+APPIMAGE_RUNTIME_SHA256="617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46"
 ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
 BUILD="$ROOT/build"
 DIST="$BUILD/dist"
@@ -49,15 +51,17 @@ mkdir -p "$DIST" "$APPIMAGE_DIST" "$DEB_DIST" "$TOOLS"
 
 appimage_runtime() {
     local rt="$TOOLS/runtime-x86_64"
-    if [ ! -x "$rt" ]; then
+    if ! printf '%s  %s\n' "$APPIMAGE_RUNTIME_SHA256" "$rt" 2>/dev/null | sha256sum -c --status; then
         echo "· Descargando runtime de AppImage" >&2
-        curl -fsSL -o "$rt" "$APPIMAGE_RUNTIME_URL"
+        rm -f "$rt" "$rt.tmp"
+        curl -fsSL -o "$rt.tmp" "$APPIMAGE_RUNTIME_URL"
+        if ! printf '%s  %s\n' "$APPIMAGE_RUNTIME_SHA256" "$rt.tmp" | sha256sum -c --status; then
+            rm -f "$rt.tmp"
+            echo "ERROR: checksum inesperado del runtime de AppImage" >&2
+            exit 1
+        fi
+        mv "$rt.tmp" "$rt"
         chmod +x "$rt"
-    fi
-    if ! printf '%s  %s\n' "$APPIMAGE_RUNTIME_SHA256" "$rt" | sha256sum -c --status; then
-        rm -f "$rt"
-        echo "ERROR: checksum inesperado del runtime de AppImage" >&2
-        exit 1
     fi
     printf '%s\n' "$rt"
 }
@@ -128,7 +132,7 @@ build_pyinstaller() {
         return
     fi
     if ! "$py" -c "import PyInstaller" >/dev/null 2>&1; then
-        "$py" -m pip install -q "pyinstaller==$PYINSTALLER_VERSION"
+        "$py" -m pip install -q --require-hashes -r "$BUILD_REQUIREMENTS"
     fi
     local extra=()
     case "$key" in
@@ -170,7 +174,7 @@ EOF
     squash="$BUILD/hwfw-$key.squashfs"
     rm -f "$out" "$squash"
     echo "· $key: AppImage"
-    mksquashfs "$appdir" "$squash" -root-owned -noappend -comp xz -b 1M >/dev/null
+    mksquashfs "$appdir" "$squash" -root-owned -noappend -comp zstd -b 1M >/dev/null
     cat "$runtime" "$squash" > "$out"
     chmod +x "$out"
     rm -f "$squash"

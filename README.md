@@ -105,6 +105,8 @@ with GPG:
 B6DD B2AF 5466 FCBC 26C9  A48E 08D4 B2CC 5280 22BB
 ```
 
+The key is also published on `keys.openpgp.org` (fingerprint lookup).
+
 Signatures are produced by a hardware-backed signing subkey; `gpg --verify`
 prints its fingerprint when checking a release.
 
@@ -232,8 +234,8 @@ download.
 
 ## Reproducible builds
 
-`packaging/build_linux.sh` sets `PYTHONHASHSEED=0` and pins PyInstaller. The AppImage runtime is pinned by
-SHA-256. With
+`packaging/build_linux.sh` sets `PYTHONHASHSEED=0`, pins PyInstaller and the static AppImage runtime by
+SHA-256, and normalises squashfs timestamps. With
 identical Python and dependency versions, rebuilding a tag produces
 byte-identical files.
 

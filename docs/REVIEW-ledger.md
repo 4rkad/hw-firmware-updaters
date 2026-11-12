@@ -1,5 +1,5 @@
-> **Abstract (English).** Audit of the Ledger backend: static analysis
-> (`ruff`, `pyflakes`, `bandit`), dependency audit (`pip-audit`), unit tests
+> **Abstract (English).** Internal review of the Ledger backend: static analysis
+> (`ruff`, `pyflakes`, `bandit`), dependency audit (`pip-audit`), 18 unit tests
 > and manual review of HID, network, crypto and error handling. Results are
 > summarized in the tables below; the full report is in Spanish.
 

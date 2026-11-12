@@ -113,12 +113,11 @@ class PairingStore(BitBoxNoiseConfig):
             with open(PAIRING_FILE) as fh:
                 self._data = json.load(fh)
         except Exception:
+            # The legacy file could have been world-readable. Do not reuse it:
+            # remove it and force a new pairing.
             try:
-                with open(LEGACY_PAIRING_FILE) as fh:
-                    self._data = json.load(fh)
-                self._save()
                 os.remove(LEGACY_PAIRING_FILE)
-            except Exception:
+            except OSError:
                 pass
         self._callback_log = None
 
@@ -131,8 +130,9 @@ class PairingStore(BitBoxNoiseConfig):
                 json.dump(self._data, fh)
             os.replace(tmp, PAIRING_FILE)
             os.chmod(PAIRING_FILE, 0o600)
-        except Exception:
-            pass
+        except Exception as exc:
+            if self._app is not None:
+                self._app.log(f"No se pudo guardar el emparejamiento: {exc}", "warn")
 
     def contains_device_static_pubkey(self, pubkey: bytes) -> bool:
         return pubkey.hex() in self._data.get("devices", {})
@@ -272,13 +272,15 @@ def download(url, log):
     return r.content
 
 
-def verify_blob(data, asset, platform, edition, log):
+def verify_blob(data, asset, platform, edition, log, require_digest=True):
     digest = hashlib.sha256(data).hexdigest()
     expected = (asset.get("digest") or "").split("sha256:", 1)[-1]
     log(f"SHA-256: {digest}")
     if not expected:
-        raise RuntimeError("El release no publica SHA-256 del asset — abortando")
-    if digest != expected:
+        if require_digest:
+            raise RuntimeError("El release no publica SHA-256 del asset — abortando")
+        log("El release no publica SHA-256 para este paso intermedio; se omite esa comprobación (la firma la valida el bootloader).", "warn")
+    elif digest != expected:
         raise RuntimeError("El SHA-256 NO coincide con el de GitHub — abortando")
     magic, _sigdata, fw = parse_signed_firmware(data)
     if magic != EDITION_MAGIC[(platform, edition)]:
@@ -1035,8 +1037,8 @@ class App:
         msg = (
             f"Se instalará la ruta: {chain}\n"
             f"Edición: {EDITION_LABEL[(platform, edition)]}\n"
-            f"Origen: github.com/BitBoxSwiss/bitbox02-firmware (firmas verificadas "
-            f"por digest SHA-256 y magic)\n"
+            f"Origen: github.com/BitBoxSwiss/bitbox02-firmware (contenedor firmado; "
+            f"SHA-256 cuando está publicado; la firma la valida el bootloader)\n"
             + (f"Hash que mostrará el dispositivo: {dev_hash}\n" if dev_hash else "")
             + "\nNo desconectes el dispositivo durante el flasheo. ¿Continuar?"
         )
@@ -1045,9 +1047,12 @@ class App:
             return
 
         blobs = []
-        for v, a, _ in images:
+        for i, (v, a, _) in enumerate(images):
             data = download(a["browser_download_url"], lambda m: self.log(m))
-            verify_blob(data, a, platform, edition, lambda m: self.log(m))
+            verify_blob(
+                data, a, platform, edition, lambda m: self.log(m),
+                require_digest=i == len(images) - 1,
+            )
             blobs.append((v, data))
 
         for i, (v, data) in enumerate(blobs):

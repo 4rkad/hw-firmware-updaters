@@ -30,10 +30,10 @@ jobs:
             python -m venv "$app/.venv"
             "$app/.venv/bin/pip" install -q --require-hashes -r "$app/requirements.txt"
           done
+          python -m pip install -q --require-hashes -r requirements-dev.txt
           for app in trezor ledger bitbox; do
-            "$app/.venv/bin/pip" install -q pytest
+            "$app/.venv/bin/pip" install -q --require-hashes -r requirements-dev.txt
           done
-          python -m pip install -q "ruff==0.17.4"
 
       - name: Lint
         run: ruff check trezor ledger bitbox common docs/make_screenshots.py
@@ -43,6 +43,11 @@ jobs:
           (cd ledger && ../ledger/.venv/bin/python -m pytest -q tests)
           (cd trezor && ../trezor/.venv/bin/python -m pytest -q tests)
           (cd bitbox && ../bitbox/.venv/bin/python -m pytest -q tests)
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq squashfs-tools
 
       - name: Build AppImage and .deb
         env:
@@ -61,15 +66,35 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3 \
             libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
-            libxcb-xkb1 libxcb-util1 squashfs-tools
+            libxcb-xkb1 libxcb-util1
 
-      - name: Smoke test (start each app headless)
+      - name: Smoke test packaged AppImages
         run: |
           for key in trezor ledger bitbox; do
-            QT_QPA_PLATFORM=offscreen timeout 30 \
-              "build/dist/hwfw-$key/hwfw-$key" --screenshot "/tmp/$key.png"
+            appimage=$(ls build/appimage/hwfw-$key-*.AppImage)
+            "$appimage" --appimage-version
+            if ! QT_QPA_PLATFORM=offscreen timeout 30 \
+                "$appimage" --screenshot "/tmp/$key.png"; then
+              APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen timeout 30 \
+                "$appimage" --screenshot "/tmp/$key.png"
+            fi
             test -s "/tmp/$key.png"
+            rm -f "/tmp/$key.png"
           done
+
+      - name: Reproducible AppImage
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+          PY_TREZOR: ${{ github.workspace }}/trezor/.venv/bin/python
+          PY_LEDGER: ${{ github.workspace }}/ledger/.venv/bin/python
+          PY_BITBOX: ${{ github.workspace }}/bitbox/.venv/bin/python
+        run: |
+          VERSION="${VERSION#v}"
+          appimage=$(ls build/appimage/hwfw-trezor-*.AppImage)
+          sha256sum "$appimage" > /tmp/first.sha
+          ./packaging/build_linux.sh
+          sha256sum "$appimage" > /tmp/second.sha
+          diff /tmp/first.sha /tmp/second.sha
 
       - name: Attest build provenance
         if: ${{ !github.event.repository.private }}

@@ -1059,7 +1059,7 @@ class BitBoxWindow(QMainWindow):
         msg = (
             f"Se instalará la ruta: {chain}\n"
             f"Edición: {edition}\n"
-            f"Origen: GitHub de BitBoxSwiss (SHA-256 y magic verificados)\n"
+            f"Origen: GitHub de BitBoxSwiss (contenedor firmado; SHA-256 cuando está publicado; la firma la valida el bootloader)\n"
             + (f"Hash que mostrará el dispositivo: {plan['dev_hash']}\n" if plan.get("dev_hash") else "")
             + "\nNo desconectes el dispositivo durante el flasheo."
         )
@@ -1075,9 +1075,13 @@ class BitBoxWindow(QMainWindow):
         info = plan["info"]
         dev_hash = plan.get("dev_hash")
         blobs = []
-        for v, a, _ in plan["images"]:
+        images = plan["images"]
+        for i, (v, a, _) in enumerate(images):
             data = backend.download(a["browser_download_url"], log)
-            backend.verify_blob(data, a, platform, edition, log)
+            backend.verify_blob(
+                data, a, platform, edition, log,
+                require_digest=i == len(images) - 1,
+            )
             blobs.append((v, data))
 
         for i, (v, data) in enumerate(blobs):
