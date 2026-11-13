@@ -29,6 +29,7 @@ import os
 import queue
 import re
 import secrets
+import socket
 import ssl
 import sys
 import threading
@@ -158,6 +159,22 @@ def _check_spki_pin(cert_der: bytes | None) -> None:
             "El certificado TLS de Ledger no coincide con LEDGER_SPKI_PINS. "
             "Posible interceptación; no se continúa."
         )
+
+
+def tls_pin_report(hosts=("manager.api.live.ledger.com", "scriptrunner.api.live.ledger.com")) -> int:
+    for host in hosts:
+        try:
+            ctx = _tls_context()
+            with socket.create_connection((host, 443), timeout=15) as raw:
+                with ctx.wrap_socket(raw, server_hostname=host) as tls:
+                    der = tls.getpeercert(binary_form=True)
+            cert = x509.load_der_x509_certificate(der)
+            expires = getattr(cert, "not_valid_after_utc", cert.not_valid_after)
+            print(f"{host}  spki-sha256={_spki_pin(der)}  expires={expires:%Y-%m-%d}")
+        except Exception as exc:
+            print(f"{host}  ERROR: {exc}")
+            return 1
+    return 0
 
 
 def _https_request(url: str, method: str = "GET", body: bytes | None = None,
@@ -2786,11 +2803,14 @@ class ChangelogWindow:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Ledger Firmware Updater")
     parser.add_argument("--selftest", action="store_true", help="consulta la API sin dispositivo")
+    parser.add_argument("--tls-pin", action="store_true", help="muestra el pin SPKI actual de la API")
     parser.add_argument("--offline", action="store_true", help="bloquea toda conexión de red")
     args = parser.parse_args()
 
     if args.offline:
         set_offline(True)
+    if args.tls_pin:
+        return tls_pin_report()
     if args.selftest:
         if OFFLINE_ONLY:
             print("Modo offline activo: el selftest necesita red.")
