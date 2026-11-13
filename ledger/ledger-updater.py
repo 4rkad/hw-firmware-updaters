@@ -169,7 +169,9 @@ def tls_pin_report(hosts=("manager.api.live.ledger.com", "scriptrunner.api.live.
                 with ctx.wrap_socket(raw, server_hostname=host) as tls:
                     der = tls.getpeercert(binary_form=True)
             cert = x509.load_der_x509_certificate(der)
-            expires = getattr(cert, "not_valid_after_utc", cert.not_valid_after)
+            expires = getattr(cert, "not_valid_after_utc", None)
+            if expires is None:
+                expires = cert.not_valid_after
             print(f"{host}  spki-sha256={_spki_pin(der)}  expires={expires:%Y-%m-%d}")
         except Exception as exc:
             print(f"{host}  ERROR: {exc}")
