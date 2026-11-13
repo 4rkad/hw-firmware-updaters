@@ -31,7 +31,7 @@ from typing import ClassVar
 DATA_BASE = "https://data.trezor.io/"
 
 try:
-    from trezorlib import device, firmware, messages, transport
+    from trezorlib import device, firmware, messages, models, transport
     from trezorlib.cli import TrezorConnection
     from trezorlib.exceptions import Cancelled
 except Exception as exc:
@@ -82,7 +82,10 @@ def fetch_releases(model_internal: str) -> list[dict]:
 
 
 def best_release(releases, client_version, bootloader_mode, bitcoin_only, want=None):
-    rels = [r for r in releases if not bitcoin_only or "url_bitcoinonly" in r]
+    rels = [
+        r for r in releases
+        if isinstance(r, dict) and r.get("version") and (not bitcoin_only or "url_bitcoinonly" in r)
+    ]
     if not rels:
         raise RuntimeError("No hay releases bitcoin-only para este modelo")
     rels.sort(key=lambda r: r["version"], reverse=True)
@@ -111,12 +114,15 @@ def best_release(releases, client_version, bootloader_mode, bitcoin_only, want=N
             or tuple(need) >= tuple(want_version)
         ):
             return rel
-        mark = tuple(rel["min_firmware_version"])
+        mark = rel.get(key)
+        if not mark:
+            return rel
+        mark = tuple(mark)
         if mark in visited:
             return rel
         visited.add(mark)
         visited.add(tuple(want_version))
-        want_version = list(rel["min_firmware_version"])
+        want_version = list(mark)
         continue
     raise RuntimeError("No se pudo resolver una ruta de actualización válida")
 
@@ -178,6 +184,13 @@ def device_model_names(model):
     return {model.internal_name, *getattr(model, "aliases", ())}
 
 
+def model_names_for_internal(internal):
+    try:
+        return device_model_names(models.by_internal_name(internal))
+    except Exception:
+        return set()
+
+
 def bitcoin_only_from_features(features):
     if features.bootloader_mode:
         return bool(features.unit_btconly)
@@ -200,6 +213,7 @@ def fetch_translation_meta(model_internal, version, bitcoin_only, log):
     edition = "bitcoinonly" if bitcoin_only else "universal"
     url = f"{DATA_BASE}firmware/{ml}/{edition}/{ml}-{version}-{edition}.json"
     log(f"Consultando traducciones para v{version}…")
+    log("El índice de traducciones no publica hash ni firma; el dispositivo valida el blob al aplicarlo.", "warn")
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     return r.json()
@@ -901,7 +915,8 @@ class App:
         rel = best_release(releases, None, False, btc)
         data = download(release_url(rel, btc), lambda m: self.log(m))
         verify_firmware(
-            data, release_fingerprint(rel, btc), set(), lambda m: self.log(m)
+            data, release_fingerprint(rel, btc), model_names_for_internal(internal),
+            lambda m: self.log(m),
         )
         suggested = rel["url_bitcoinonly" if btc else "url"].rsplit("/", 1)[-1]
         self.q.put(("ask_save", data, suggested))
@@ -1747,7 +1762,7 @@ def selftest(model_internal):
         print(m)
 
     data = download(release_url(rel, False), log)
-    _, digest = verify_firmware(data, release_fingerprint(rel, False), set(), log)
+    _, digest = verify_firmware(data, release_fingerprint(rel, False), model_names_for_internal(model_internal), log)
     print(
         f"SELFTEST OK · {model_internal} v{'.'.join(map(str, rel['version']))} · "
         f"{len(data)} bytes · fingerprint {digest}"

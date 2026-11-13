@@ -409,15 +409,23 @@ class TrezorWindow(QMainWindow):
         job.finished.connect(lambda j=job: self.jobs.discard(j))
         self.jobs.add(job)
         self.set_busy(True, busy_text)
-        QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
+        if timeout_ms > 0:
+            QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
         job.start()
         return True
 
     def check_timeout(self, job):
-        if self.active_job is job:
-            self.active_job = None
-            self.append_log("La operación ha tardado demasiado; se libera la interfaz.", "warn")
-            self.set_busy(False)
+        if self.active_job is not job:
+            return
+        if job.isRunning():
+            self.append_log(
+                "La operación sigue en curso; la interfaz permanece bloqueada hasta que termine.",
+                "warn",
+            )
+            QTimer.singleShot(30000, lambda: self.check_timeout(job))
+            return
+        self.active_job = None
+        self.set_busy(False)
 
     def finish_job(self, job, result, callback):
         if job is not self.active_job:
@@ -442,6 +450,20 @@ class TrezorWindow(QMainWindow):
             callback(error)
         else:
             InfoDialog(self, "Trezor Updater", error, error=True).exec()
+
+    def closeEvent(self, event):
+        job = self.active_job
+        if job is not None and job.isRunning():
+            InfoDialog(
+                self,
+                "Operación en curso",
+                "Hay una operación en curso sobre el dispositivo. "
+                "Cerrar la aplicación puede interrumpirla y dejar el dispositivo inservible.",
+                error=True,
+            ).exec()
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     def set_busy(self, busy, text=None):
         self.busy = busy
@@ -663,7 +685,7 @@ class TrezorWindow(QMainWindow):
             job,
             on_result=done,
             busy_text=busy_text,
-            timeout_ms=600000,
+            timeout_ms=0,
         )
 
     def toggle_passphrase(self):
@@ -776,7 +798,7 @@ class TrezorWindow(QMainWindow):
             job,
             on_result=lambda _: QTimer.singleShot(1200, self.detect),
             busy_text="Creando wallet…",
-            timeout_ms=900000,
+            timeout_ms=0,
         )
 
     def recover_wallet(self):
@@ -824,7 +846,7 @@ class TrezorWindow(QMainWindow):
             job,
             on_result=lambda _: QTimer.singleShot(1200, self.detect),
             busy_text="Restaurando wallet…",
-            timeout_ms=900000,
+            timeout_ms=0,
         )
 
     def backup_wallet(self):
@@ -885,7 +907,7 @@ class TrezorWindow(QMainWindow):
             job,
             on_result=verified,
             busy_text="Comprobando backup…",
-            timeout_ms=900000,
+            timeout_ms=0,
         )
 
 
@@ -1180,7 +1202,7 @@ class TrezorWindow(QMainWindow):
         def fn(log, progress):
             return self._prepare(log, progress, btc_pref)
 
-        self.submit(fn, on_result=self.confirm_update, busy_text="Preparando firmware…", timeout_ms=300000)
+        self.submit(fn, on_result=self.confirm_update, busy_text="Preparando firmware…", timeout_ms=0)
 
     def confirm_update(self, plan):
         if plan.get("up_to_date"):
@@ -1218,7 +1240,7 @@ class TrezorWindow(QMainWindow):
             backend.flash(plan["data"], plan["fw"], info["bootloader_onev2"], log, progress)
             return True
 
-        self.submit(fn, on_result=self.update_done, busy_text="Flasheando firmware…", timeout_ms=1800000)
+        self.submit(fn, on_result=self.update_done, busy_text="Flasheando firmware…", timeout_ms=0)
 
     def update_done(self, _):
         self.progress.setValue(self.progress.maximum())

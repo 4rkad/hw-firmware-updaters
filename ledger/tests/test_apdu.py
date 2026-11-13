@@ -22,3 +22,12 @@ def test_parse_apdu_script_rejects_empty_script():
 def test_parse_apdu_script_rejects_invalid_hex():
     with pytest.raises(ValueError):
         backend.parse_apdu_script("ZZ")
+
+
+@pytest.mark.parametrize("size", list(range(0, 24)))
+def test_parse_firmware_info_never_raises_index_error(size):
+    data = bytes(range(size))
+    try:
+        backend.parse_firmware_info(data)
+    except RuntimeError:
+        pass

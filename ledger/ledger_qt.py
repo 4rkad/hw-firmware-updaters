@@ -572,7 +572,8 @@ class MainWindow(QMainWindow):
         job.finished.connect(lambda j=job: self.jobs.discard(j))
         self.jobs.add(job)
         self.set_busy(True, busy_text)
-        QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
+        if timeout_ms > 0:
+            QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
         job.start()
         return True
 
@@ -619,6 +620,20 @@ class MainWindow(QMainWindow):
     def restyle(self, w):
         w.style().unpolish(w)
         w.style().polish(w)
+
+    def closeEvent(self, event):
+        job = self.active_job
+        if job is not None and job.isRunning():
+            InfoDialog(
+                self,
+                "Operación en curso",
+                "Hay una operación en curso sobre el dispositivo. "
+                "Cerrar la aplicación puede interrumpirla y dejar el dispositivo inservible.",
+                error=True,
+            ).exec()
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     def apply_button_states(self):
         busy = self.busy
@@ -970,11 +985,13 @@ class MainWindow(QMainWindow):
             return
         if not offline:
             def fn(log, progress):
+                if not backend.offline_genuine_check(self.path, log):
+                    return False
                 return backend.genuine_check(self.path, log, progress)
         else:
             def fn(log, progress):
                 return backend.offline_genuine_check(self.path, log)
-        self.submit(fn, on_result=lambda ok: self.set_genuine(ok, offline), busy_text="Verificando…", timeout_ms=180000)
+        self.submit(fn, on_result=lambda ok: self.set_genuine(ok, offline), busy_text="Verificando…", timeout_ms=0)
 
     def set_genuine(self, ok, offline):
         self.genuine_chip.setText("● Genuino" if ok else "No verificado")
@@ -1020,7 +1037,7 @@ class MainWindow(QMainWindow):
             )
 
         self.set_progress(0, 100)
-        self.submit(fn, on_result=self.update_done, busy_text="Actualizando firmware…", timeout_ms=1800000)
+        self.submit(fn, on_result=self.update_done, busy_text="Actualizando firmware…", timeout_ms=0)
 
     def update_done(self, info):
         self.append_log("Actualización completada.", "ok")
@@ -1226,7 +1243,7 @@ class AppsDialog(QDialog):
                 dev.close()
             return name
 
-        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Instalando {name}…", timeout_ms=600000)
+        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Instalando {name}…", timeout_ms=0)
 
     def uninstall(self, name):
         app = next((a for a in self.catalog if (a.get("versionName") or "").strip().lower() == name.strip().lower()), None)
@@ -1245,7 +1262,7 @@ class AppsDialog(QDialog):
                 dev.close()
             return name
 
-        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Desinstalando {name}…", timeout_ms=600000)
+        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Desinstalando {name}…", timeout_ms=0)
 
     def update_all(self):
         names = []
@@ -1278,7 +1295,7 @@ class AppsDialog(QDialog):
                     dev.close()
             return names
 
-        self.main.submit(fn, on_result=lambda _: self.load(), busy_text="Actualizando apps…", timeout_ms=1800000)
+        self.main.submit(fn, on_result=lambda _: self.load(), busy_text="Actualizando apps…", timeout_ms=0)
 
     def export(self):
         path, _ = QFileDialog.getSaveFileName(self, "Exportar lista de apps", "ledger-apps.json", "JSON (*.json)")
@@ -1408,7 +1425,7 @@ class LanguageDialog(QDialog):
                 dev.close()
             return lang_id
 
-        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Instalando {name}…", timeout_ms=600000)
+        self.main.submit(fn, on_result=lambda _: self.load(), busy_text=f"Instalando {name}…", timeout_ms=0)
         self.status.setText(f"Instalando {name}…")
 
 

@@ -93,7 +93,12 @@ A failed check aborts the operation before the device is modified.
 
 The BitBox SHA-256 is read from the same GitHub release metadata as the
 binary. It provides integrity, not authenticity; authenticity comes from the
-bootloader's signature verification. The host does not claim otherwise. The Ledger
+bootloader's signature verification. The host does not claim otherwise.
+Intermediate BitBox firmware without a published digest is accepted with a
+warning; the final image always requires it.
+
+Trezor language blobs are not hash-pinned by the vendor index; the device
+validates them when applied. The host logs this limitation. The Ledger
 backend review is documented in `docs/REVIEW-ledger.md` (Spanish).
 
 ### Release verification
@@ -135,9 +140,9 @@ gh attestation verify hwfw-trezor-X.Y.Z-x86_64.AppImage \
 - **PySide6/Qt** user interface. Trezor and BitBox share theme, dialogs and
   components; Ledger uses the same visual language. A legacy Tkinter mode is
   available with `--tk`.
-- **Worker threads** for downloads and device I/O. The interface remains
-  responsive, operations have timeouts, and failures leave the UI in a
-  consistent state.
+- **Worker threads** for downloads and device I/O. Device operations are not
+  interrupted by UI timeouts: the interface stays blocked until the job ends,
+  and closing the application is refused while a device operation is active.
 - **Direct USB HID transport**, without Bridge or background daemons.
 - **Client-side verification** of hashes, magic, model, edition, and signatures
   where the host can validate them.
@@ -171,9 +176,10 @@ gh attestation verify hwfw-trezor-X.Y.Z-x86_64.AppImage \
 - Ledger integration pins `livecommonversion` (overridable with the
   `LIVE_COMMON_VERSION` environment variable) and may break if the vendor
   changes its API. A weekly CI job runs `--selftest`; see `docs/LEDGER-API.md`
-  for detection and update steps. Offline genuine checks use the issuer keys
-  known to this project; an unrecognized model is reported as unverified, not
-  as counterfeit.
+  for detection and update steps. The update plan refuses versions older than
+  the installed firmware. Genuine checks require the offline attestation; the
+  online HSM result alone is not displayed as genuine. An unrecognized model is
+  reported as unverified, not as counterfeit.
 - The legacy Tk interface (`--tk`) exposes an optional BIP85 Lightning seed
   export to the host. The Qt interface only displays the BIP39 mnemonic on the
   device.

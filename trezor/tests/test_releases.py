@@ -54,3 +54,15 @@ def test_bitcoin_only_release_is_selected_when_present():
     chosen = backend.best_release(releases, (2, 11, 0), False, True)
     assert chosen["version"] == [2, 12, 5]
     assert backend.release_fingerprint(chosen, True) == "11" * 32
+
+
+def test_malformed_releases_are_ignored():
+    releases = [{"version": [2, 0, 0]}, {"min_firmware_version": [1, 0, 0]}, {"version": [2, 1, 0]}]
+    chosen = backend.best_release(releases, None, False, False)
+    assert chosen["version"] == [2, 1, 0]
+
+
+def test_missing_minimum_field_does_not_raise():
+    releases = [{"version": [2, 0, 0]}]
+    chosen = backend.best_release(releases, (1, 0, 0), False, False)
+    assert chosen["version"] == [2, 0, 0]

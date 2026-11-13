@@ -55,6 +55,25 @@ gh workflow run ledger-api.yml
 4. Run `--selftest` and the backend tests.
 5. Confirm an update plan with a real device before publishing a release.
 
+## Transport hardening
+
+- TLS uses an explicit context: `CERT_REQUIRED`, hostname verification and
+  TLS 1.2 minimum.
+- Optional SPKI pinning:
+
+  ```bash
+  LEDGER_SPKI_PINS=<sha256>,<sha256> ./ledger/run.sh
+  ```
+
+  Pins are SHA-256 of the DER SubjectPublicKeyInfo. Ledger rotates its
+  certificates roughly every 90 days, so a leaf pin must be updated on
+  rotation; leave it unset unless you are prepared to maintain it.
+- The update plan refuses a version older than the installed firmware, which
+  limits what a manipulated metadata response can achieve.
+- Genuine checks require the local attestation (challenge, certificate chain
+  and proof of possession). The online HSM result is advisory and is not shown
+  as genuine on its own.
+
 ## Fallback
 
 If the API is temporarily broken, use Ledger Live for that update. This

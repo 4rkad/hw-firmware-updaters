@@ -4,7 +4,7 @@
 A diferencia de Trezor o BitBox, Ledger no publica binarios de firmware: el flasheo lo
 orquesta un HSM de Ledger por WebSocket. Este programa hace de puente: consulta la API
 pública de Ledger, elige la ruta de actualización (OSU) y retransmite los APDU al
-dispositivo. El firmware nunca pasa por tu ordenador.
+dispositivo. Los APDU firmados se retransmiten por el host; no se pueden forjar ni descifrar.
 
 Incluye: detección de modelo y versión, consulta de la última versión estable, ruta de
 actualización por pasos, flasheo de OSU, MCU y bootloader, verificación de genuinidad
@@ -22,6 +22,8 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import http.client
 import json
 import os
 import queue
@@ -49,6 +51,7 @@ except ImportError:
     sys.exit(1)
 
 try:
+    from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 except ImportError:
@@ -130,6 +133,58 @@ DYNAMIC_HASHES = {"fido u2f", "security key"}
 # --------------------------------------------------------------------------- utilidades
 
 
+def _tls_context():
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = True
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
+
+
+def _spki_pin(cert_der: bytes) -> str:
+    cert = x509.load_der_x509_certificate(cert_der)
+    spki = cert.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return hashlib.sha256(spki).hexdigest()
+
+
+def _check_spki_pin(cert_der: bytes | None) -> None:
+    pins = {p.strip().lower() for p in os.environ.get("LEDGER_SPKI_PINS", "").split(",") if p.strip()}
+    if not pins or not cert_der:
+        return
+    if _spki_pin(cert_der) not in pins:
+        raise RuntimeError(
+            "El certificado TLS de Ledger no coincide con LEDGER_SPKI_PINS. "
+            "Posible interceptación; no se continúa."
+        )
+
+
+def _https_request(url: str, method: str = "GET", body: bytes | None = None,
+                   headers: dict | None = None, timeout: float = 30.0) -> bytes:
+    parsed = urllib.parse.urlparse(url)
+    conn = http.client.HTTPSConnection(
+        parsed.hostname, parsed.port or 443, timeout=timeout, context=_tls_context()
+    )
+    target = parsed.path or "/"
+    if parsed.query:
+        target += "?" + parsed.query
+    try:
+        conn.request(method, target, body=body, headers=headers or {})
+        sock = getattr(conn, "sock", None)
+        if sock is not None and hasattr(sock, "getpeercert"):
+            _check_spki_pin(sock.getpeercert(binary_form=True))
+        resp = conn.getresponse()
+        data = resp.read()
+        if resp.status >= 400:
+            exc = RuntimeError(f"HTTP {resp.status} desde {parsed.hostname}")
+            exc.code = resp.status
+            raise exc
+        return data
+    finally:
+        conn.close()
+
+
 def http_json(url: str, timeout: float = 30.0):
     if OFFLINE_ONLY:
         raise RuntimeError("Modo offline: esta acción necesita conexión con Ledger")
@@ -140,9 +195,12 @@ def http_json(url: str, timeout: float = 30.0):
         or not url.startswith(MANAGER_API + "/")
     ):
         raise RuntimeError(f"Destino HTTP no permitido: {url}")
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})  # noqa: S310
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310  # noqa: S310
-        return json.loads(resp.read().decode())
+    data = _https_request(
+        url,
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+        timeout=timeout,
+    )
+    return json.loads(data.decode())
 
 
 def http_post_json(url: str, payload, timeout: float = 30.0):
@@ -156,18 +214,18 @@ def http_post_json(url: str, payload, timeout: float = 30.0):
     ):
         raise RuntimeError(f"Destino HTTP no permitido: {url}")
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(  # noqa: S310
+    data = _https_request(
         url,
-        data=body,
+        method="POST",
+        body=body,
         headers={
             "User-Agent": USER_AGENT,
             "Accept": "application/json",
             "Content-Type": "application/json",
         },
-        method="POST",
+        timeout=timeout,
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310  # noqa: S310
-        return json.loads(resp.read().decode())
+    return json.loads(data.decode())
 
 
 def api_get(path: str, **params):
@@ -412,10 +470,16 @@ def parse_firmware_info(data: bytes) -> dict:
     i = 4
     raw_len = data[i]
     i += 1
+    if i + raw_len > len(data):
+        raise RuntimeError("Respuesta de versión truncada (versión)")
     info["raw_version"] = data[i : i + raw_len].decode(errors="replace")
     i += raw_len
+    if i >= len(data):
+        raise RuntimeError("Respuesta de versión truncada (flags)")
     flags_len = data[i]
     i += 1
+    if i + flags_len > len(data):
+        raise RuntimeError("Respuesta de versión truncada (flags)")
     info["flags"] = data[i : i + flags_len]
     i += flags_len
 
@@ -432,6 +496,8 @@ def parse_firmware_info(data: bytes) -> dict:
         if i < len(data):
             part1_len = data[i]
             i += 1
+            if i + part1_len > len(data):
+                raise RuntimeError("Respuesta de versión truncada (bootloader)")
             part1 = data[i : i + part1_len]
             i += part1_len
             if part1_len >= 5:
@@ -439,6 +505,8 @@ def parse_firmware_info(data: bytes) -> dict:
                 if i < len(data):
                     part2_len = data[i]
                     i += 1
+                    if i + part2_len > len(data):
+                        raise RuntimeError("Respuesta de versión truncada (target)")
                     part2 = data[i : i + part2_len]
                     if len(part2) >= 4:
                         info["se_target_id"] = int.from_bytes(part2[0:4], "big")
@@ -450,6 +518,8 @@ def parse_firmware_info(data: bytes) -> dict:
         if i < len(data):
             mcu_len = data[i]
             i += 1
+            if i + mcu_len > len(data):
+                raise RuntimeError("Respuesta de versión truncada (MCU)")
             mcu = data[i : i + mcu_len]
             i += mcu_len
             info["mcu_version"] = mcu.decode(errors="replace").rstrip("\x00")
@@ -645,14 +715,29 @@ def open_path(path, log=None) -> tuple[LedgerHID, dict]:
         try:
             dev = LedgerHID(path)
         except Exception as exc:
-            if log:
-                log(f"No se pudo abrir el dispositivo seleccionado ({exc}); probando otro…", "warn")
-        else:
             try:
-                return dev, get_firmware_info(dev)
+                count = len(LedgerHID.enumerate())
             except Exception:
-                dev.close()
-                raise
+                count = 0
+            if count == 1:
+                if log:
+                    log(
+                        f"No se pudo abrir el dispositivo seleccionado ({exc}); "
+                        "usando el único dispositivo conectado.",
+                        "warn",
+                    )
+            elif count == 0:
+                raise RuntimeError("No hay ningún Ledger conectado") from exc
+            else:
+                raise RuntimeError(
+                    f"No se pudo abrir el dispositivo seleccionado y hay {count} "
+                    "conectados; vuelve a seleccionarlo."
+                ) from exc
+        try:
+            return dev, get_firmware_info(dev)
+        except Exception:
+            dev.close()
+            raise
     return open_first(log)
 
 
@@ -760,9 +845,8 @@ def fetch_text(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != LANGUAGE_HOST:
         raise RuntimeError(f"Origen de pack de idioma no permitido: {url}")
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310
-    with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310  # noqa: S310
-        return resp.read().decode()
+    data = _https_request(url, headers={"User-Agent": USER_AGENT}, timeout=60)
+    return data.decode()
 
 
 def parse_apdu_script(script: str) -> list[bytes]:
@@ -980,7 +1064,14 @@ def run_socket(dev: LedgerHID, kind: str, params: dict, log, progress, timeout: 
     if not url.startswith(SOCKET_BASE + "/"):
         raise SocketError(f"Destino WebSocket no permitido: {url}")
     log(f"Conectando con el servicio de Ledger ({kind})…", "dim")
-    ws = websocket.create_connection(url, timeout=timeout, sslopt={"cert_reqs": ssl.CERT_REQUIRED})
+    ws = websocket.create_connection(
+        url,
+        timeout=timeout,
+        sslopt={"context": _tls_context()},
+    )
+    sock = getattr(ws, "sock", None)
+    if sock is not None and hasattr(sock, "getpeercert"):
+        _check_spki_pin(sock.getpeercert(binary_form=True))
     result = None
     try:
         while True:
@@ -1125,6 +1216,17 @@ def update_plan(path, log) -> dict:
     finals = fetch_all_finals()
     latest = latest_final(finals, dv["id"])
     current = clean_version(info.get("se_version") or "")
+    if (
+        latest
+        and current
+        and not info.get("is_bootloader")
+        and (norm_version(latest["version"]) or (0,)) < (norm_version(current) or (0,))
+    ):
+        raise RuntimeError(
+            "La API ofrece una versión anterior a la instalada. "
+            "Posible manipulación de la red o error de Ledger; no se actualizará. "
+            "Usa Ledger Live o revisa la conexión."
+        )
     route = None
     if latest and not info.get("is_bootloader"):
         route = find_update_path(build_edges(finals, dv["id"]), current, latest["version"])
@@ -1366,7 +1468,7 @@ def genuine_check(path, log, progress) -> bool:
             progress,
         )
         ok = str(result).lower() in ("0000", "true", "1")
-        log("Dispositivo genuino." if ok else f"Resultado inesperado: {result}", "ok" if ok else "warn")
+        log("Servicio de genuinidad de Ledger: OK (la prueba criptográfica es la atestación offline)." if ok else f"Resultado inesperado: {result}", "ok" if ok else "warn")
         return ok
     finally:
         try:
@@ -1941,6 +2043,9 @@ class App:
     def genuine_job(self):
         log = lambda m, t=None: self.emit("log", m, t)
         progress = lambda c, t: self.emit("progress", c, t)
+        if not offline_genuine_check(self.path, log):
+            log("No se pudo verificar la atestación local; no se consulta el servicio online.", "warn")
+            return
         genuine_check(self.path, log, progress)
 
     def start_genuine_offline(self):

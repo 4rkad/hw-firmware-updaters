@@ -393,15 +393,23 @@ class BitBoxWindow(QMainWindow):
         job.finished.connect(lambda j=job: self.jobs.discard(j))
         self.jobs.add(job)
         self.set_busy(True, busy_text)
-        QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
+        if timeout_ms > 0:
+            QTimer.singleShot(timeout_ms, lambda: self.check_timeout(job))
         job.start()
         return True
 
     def check_timeout(self, job):
-        if self.active_job is job:
-            self.active_job = None
-            self.append_log("La operación ha tardado demasiado; se libera la interfaz.", "warn")
-            self.set_busy(False)
+        if self.active_job is not job:
+            return
+        if job.isRunning():
+            self.append_log(
+                "La operación sigue en curso; la interfaz permanece bloqueada hasta que termine.",
+                "warn",
+            )
+            QTimer.singleShot(30000, lambda: self.check_timeout(job))
+            return
+        self.active_job = None
+        self.set_busy(False)
 
     def finish_job(self, job, result, callback):
         if job is not self.active_job:
@@ -426,6 +434,20 @@ class BitBoxWindow(QMainWindow):
             callback(error)
         else:
             InfoDialog(self, "BitBox Updater", error, error=True).exec()
+
+    def closeEvent(self, event):
+        job = self.active_job
+        if job is not None and job.isRunning():
+            InfoDialog(
+                self,
+                "Operación en curso",
+                "Hay una operación en curso sobre el dispositivo. "
+                "Cerrar la aplicación puede interrumpirla y dejar el dispositivo inservible.",
+                error=True,
+            ).exec()
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     def set_busy(self, busy, text=None):
         self.busy = busy
@@ -614,7 +636,7 @@ class BitBoxWindow(QMainWindow):
                 on_done()
             QTimer.singleShot(1200, self.detect)
 
-        self.submit(job, on_result=done, busy_text=busy_text, timeout_ms=900000)
+        self.submit(job, on_result=done, busy_text=busy_text, timeout_ms=0)
 
     def toggle_passphrase(self):
         def fn(client, log):
@@ -1043,7 +1065,7 @@ class BitBoxWindow(QMainWindow):
     def start_update(self):
         if self.busy:
             return
-        self.submit(lambda log, progress: self._plan(log, progress), on_result=self.confirm_update, busy_text="Preparando firmware…", timeout_ms=120000)
+        self.submit(lambda log, progress: self._plan(log, progress), on_result=self.confirm_update, busy_text="Preparando firmware…", timeout_ms=0)
 
     def confirm_update(self, plan):
         if not plan:
@@ -1066,7 +1088,7 @@ class BitBoxWindow(QMainWindow):
         if not ConfirmDialog(self, "Actualizar firmware", msg, confirm="Instalar firmware").exec():
             self.append_log("Actualización cancelada por el usuario.", "warn")
             return
-        self.submit(lambda log, progress: self._flash(plan, log, progress), on_result=self.update_done, busy_text="Flasheando firmware…", timeout_ms=1800000)
+        self.submit(lambda log, progress: self._flash(plan, log, progress), on_result=self.update_done, busy_text="Flasheando firmware…", timeout_ms=0)
 
     def _flash(self, plan, log, progress):
         platform = plan["platform"]
